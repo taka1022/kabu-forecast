@@ -416,43 +416,38 @@ export default function Dashboard(){
             </Card>
 
             {/* Company Financials */}
-            {financials.length>0&&(
+            {financials.length>0&&financials.some(f=>f.revenue!==null)&&(
               <Card style={{marginBottom:14,overflow:"hidden"}}>
                 <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border-light)",fontSize:13,fontWeight:700,color:"var(--accent)"}}>企業業績（年次）</div>
                 <div style={{overflowX:"auto"}}>
-                  <table style={{width:"100%",borderCollapse:"collapse",minWidth:mobile?400:0}}>
+                  <table style={{width:"100%",borderCollapse:"collapse"}}>
                     <thead>
                       <tr style={{borderBottom:"1px solid var(--border)"}}>
                         <th style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"left",fontSize:mobile?10:11,fontWeight:600,color:"var(--text-muted)",whiteSpace:"nowrap"}}>決算期</th>
                         <th style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right",fontSize:mobile?10:11,fontWeight:600,color:"var(--text-muted)",whiteSpace:"nowrap"}}>売上高</th>
-                        <th style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right",fontSize:mobile?10:11,fontWeight:600,color:"var(--text-muted)",whiteSpace:"nowrap"}}>営業利益</th>
                         <th style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right",fontSize:mobile?10:11,fontWeight:600,color:"var(--text-muted)",whiteSpace:"nowrap"}}>純利益</th>
-                        <th style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right",fontSize:mobile?10:11,fontWeight:600,color:"var(--text-muted)",whiteSpace:"nowrap"}}>営業利益率</th>
-                        <th style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right",fontSize:mobile?10:11,fontWeight:600,color:"var(--text-muted)",whiteSpace:"nowrap"}}>EPS</th>
+                        <th style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right",fontSize:mobile?10:11,fontWeight:600,color:"var(--text-muted)",whiteSpace:"nowrap"}}>純利益率</th>
                       </tr>
                     </thead>
                     <tbody>
                       {financials.map((f,i)=>{
-                        const prev = i>0?financials[i-1]:null;
-                        const revGrowth = prev?.revenue&&f.revenue?((f.revenue-prev.revenue)/Math.abs(prev.revenue)*100):null;
-                        const opGrowth = prev?.operatingIncome&&f.operatingIncome?((f.operatingIncome-prev.operatingIncome)/Math.abs(prev.operatingIncome)*100):null;
+                        const prev=i>0?financials[i-1]:null;
+                        const revGrowth=prev?.revenue&&f.revenue?((f.revenue-prev.revenue)/Math.abs(prev.revenue)*100):null;
+                        const netGrowth=prev?.netIncome&&f.netIncome?((f.netIncome-prev.netIncome)/Math.abs(prev.netIncome)*100):null;
+                        const netMargin=f.revenue&&f.netIncome?Math.round((f.netIncome/f.revenue)*1000)/10:null;
                         return(
                           <tr key={f.date} style={{borderBottom:"1px solid var(--border-light)"}}>
                             <td style={{padding:mobile?"8px 10px":"10px 16px",fontSize:mobile?11:12,fontWeight:600,color:"var(--accent)"}}>{f.fiscalYear}</td>
                             <td style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right"}}>
-                              <div className="mono" style={{fontSize:mobile?11:13,fontWeight:600}}>{f.revenue?fmtBigNum(f.revenue):"—"}</div>
-                              {revGrowth!==null&&<div className="mono" style={{fontSize:9,color:revGrowth>=0?"var(--green)":"var(--red)",marginTop:1}}>({revGrowth>=0?"+":""}{revGrowth.toFixed(1)}%)</div>}
+                              <div className="mono" style={{fontSize:mobile?12:14,fontWeight:600}}>{f.revenue?fmtBigNum(f.revenue):"—"}</div>
+                              {revGrowth!==null&&<div className="mono" style={{fontSize:9,color:revGrowth>=0?"var(--green)":"var(--red)",marginTop:1}}>前年比 {revGrowth>=0?"+":""}{revGrowth.toFixed(1)}%</div>}
                             </td>
                             <td style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right"}}>
-                              <div className="mono" style={{fontSize:mobile?11:13,fontWeight:600}}>{f.operatingIncome?fmtBigNum(f.operatingIncome):"—"}</div>
-                              {opGrowth!==null&&<div className="mono" style={{fontSize:9,color:opGrowth>=0?"var(--green)":"var(--red)",marginTop:1}}>({opGrowth>=0?"+":""}{opGrowth.toFixed(1)}%)</div>}
+                              <div className="mono" style={{fontSize:mobile?12:14,fontWeight:600}}>{f.netIncome?fmtBigNum(f.netIncome):"—"}</div>
+                              {netGrowth!==null&&<div className="mono" style={{fontSize:9,color:netGrowth>=0?"var(--green)":"var(--red)",marginTop:1}}>前年比 {netGrowth>=0?"+":""}{netGrowth.toFixed(1)}%</div>}
                             </td>
-                            <td className="mono" style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right",fontSize:mobile?11:13,fontWeight:600}}>{f.netIncome?fmtBigNum(f.netIncome):"—"}</td>
                             <td style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right"}}>
-                              <span className="mono" style={{fontSize:mobile?11:13,fontWeight:600,color:f.operatingMargin&&f.operatingMargin>=10?"var(--green)":"var(--text-primary)"}}>{f.operatingMargin?f.operatingMargin.toFixed(1)+"%":"—"}</span>
-                            </td>
-                            <td className="mono" style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right",fontSize:mobile?11:13,fontWeight:600}}>
-                              {f.eps?`¥${f.eps.toFixed(1)}`:"—"}
+                              <span className="mono" style={{fontSize:mobile?12:14,fontWeight:600,color:netMargin&&netMargin>=10?"var(--green)":"var(--text-primary)"}}>{netMargin!==null?netMargin.toFixed(1)+"%":"—"}</span>
                             </td>
                           </tr>
                         );
