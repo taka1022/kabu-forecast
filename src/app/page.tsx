@@ -263,8 +263,8 @@ export default function Dashboard(){
                   <defs>
                     <linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={isUp?"#059669":"#E11D48"} stopOpacity={0.12}/><stop offset="100%" stopColor={isUp?"#059669":"#E11D48"} stopOpacity={0}/></linearGradient>
                   </defs>
-                  <XAxis dataKey="date" tick={{fontSize:mobile?8:10,fill:"#888",fontFamily:"DM Mono"}} axisLine={{stroke:"var(--border-light)"}} tickLine={false} interval={xInterval}/>
-                  <YAxis domain={[pMin,pMax]} tick={{fontSize:mobile?8:10,fill:"#888",fontFamily:"DM Mono"}} axisLine={false} tickLine={false} tickFormatter={(v:number)=>`¥${Math.round(v).toLocaleString()}`} width={mobile?55:78}/>
+                  <XAxis dataKey="date" tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={{stroke:"var(--border-light)"}} tickLine={false} interval={xInterval}/>
+                  <YAxis domain={[pMin,pMax]} tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={false} tickLine={false} tickFormatter={(v:number)=>`¥${Math.round(v).toLocaleString()}`} width={mobile?55:78}/>
                   <Tooltip content={<PriceTip/>}/>
                   <ReferenceLine y={stk.prevClose} stroke="#D4D4D4" strokeDasharray="3 3"/>
                   {showBB&&<><Line type="monotone" dataKey="bbUpper2" stroke="var(--purple)" strokeWidth={0.5} dot={false} strokeOpacity={0.4}/><Line type="monotone" dataKey="bbLower2" stroke="var(--purple)" strokeWidth={0.5} dot={false} strokeOpacity={0.4}/></>}
@@ -284,8 +284,8 @@ export default function Dashboard(){
                 <ResponsiveContainer width="100%" height={mobile?160:220}>
                   <AreaChart data={chart} margin={{top:5,right:mobile?4:10,left:mobile?0:10,bottom:5}}>
                     <defs><linearGradient id="rsiFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--accent)" stopOpacity={0.08}/><stop offset="100%" stopColor="var(--accent)" stopOpacity={0}/></linearGradient></defs>
-                    <XAxis dataKey="date" tick={{fontSize:mobile?8:10,fill:"#888",fontFamily:"DM Mono"}} axisLine={{stroke:"var(--border-light)"}} tickLine={false} interval={xInterval}/>
-                    <YAxis domain={[0,100]} ticks={[20,30,50,70,80]} tick={{fontSize:mobile?8:10,fill:"#888",fontFamily:"DM Mono"}} axisLine={false} tickLine={false} width={mobile?25:35}/>
+                    <XAxis dataKey="date" tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={{stroke:"var(--border-light)"}} tickLine={false} interval={xInterval}/>
+                    <YAxis domain={[0,100]} ticks={[20,30,50,70,80]} tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={false} tickLine={false} width={mobile?25:35}/>
                     <Tooltip content={<RsiTip/>}/><ReferenceLine y={70} stroke="var(--red)" strokeDasharray="3 3" strokeOpacity={0.4}/><ReferenceLine y={30} stroke="var(--green)" strokeDasharray="3 3" strokeOpacity={0.4}/><ReferenceLine y={50} stroke="#D4D4D4" strokeDasharray="2 4" strokeOpacity={0.3}/>
                     <Area type="monotone" dataKey="rsi" stroke="var(--accent)" strokeWidth={1.5} fill="url(#rsiFill)" dot={false} connectNulls={false}/>
                   </AreaChart>
@@ -304,8 +304,8 @@ export default function Dashboard(){
                 <>
                 <ResponsiveContainer width="100%" height={mobile?160:220}>
                   <ComposedChart data={chart} margin={{top:5,right:mobile?4:10,left:mobile?0:10,bottom:5}}>
-                    <XAxis dataKey="date" tick={{fontSize:mobile?8:10,fill:"#888",fontFamily:"DM Mono"}} axisLine={{stroke:"var(--border-light)"}} tickLine={false} interval={xInterval}/>
-                    <YAxis tick={{fontSize:mobile?8:10,fill:"#888",fontFamily:"DM Mono"}} axisLine={false} tickLine={false} width={mobile?35:45}/><Tooltip content={<MacdTip/>}/><ReferenceLine y={0} stroke="#D4D4D4" strokeDasharray="3 3"/>
+                    <XAxis dataKey="date" tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={{stroke:"var(--border-light)"}} tickLine={false} interval={xInterval}/>
+                    <YAxis tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={false} tickLine={false} width={mobile?35:45}/><Tooltip content={<MacdTip/>}/><ReferenceLine y={0} stroke="#D4D4D4" strokeDasharray="3 3"/>
                     <Bar dataKey="macdHist" barSize={mobile?2:3}>{chart.map((d,i)=><Cell key={i} fill={(d.macdHist??0)>=0?"var(--green)":"var(--red)"} fillOpacity={0.5}/>)}</Bar>
                     <Line type="monotone" dataKey="macd" stroke="var(--accent)" strokeWidth={1.5} dot={false} connectNulls={false}/>
                     <Line type="monotone" dataKey="macdSignal" stroke="var(--purple)" strokeWidth={1} dot={false} strokeDasharray="4 2" connectNulls={false}/>
