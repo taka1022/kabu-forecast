@@ -422,42 +422,101 @@ export interface FinancialPeriod {
 }
 
 export async function fetchFinancials(code: string): Promise<FinancialPeriod[]> {
+  const ticker = `${code}.T`;
+
+  // Approach 1: quoteSummary earnings + incomeStatementHistory
   try {
-    const ticker = `${code}.T`;
+    const summary: any = await yf.quoteSummary(ticker, {
+      modules: ["earnings", "incomeStatementHistory"],
+    });
+
+    // Try earnings.financialsChart.yearly first
+    const yearly = summary?.earnings?.financialsChart?.yearly;
+    if (yearly && Array.isArray(yearly) && yearly.length > 0) {
+      const results: FinancialPeriod[] = yearly
+        .slice(-3)
+        .map((y: any) => ({
+          date: `${y.date}/3`,
+          fiscalYear: `${y.date}年`,
+          revenue: y.revenue?.raw ?? y.revenue ?? null,
+          operatingIncome: null,
+          netIncome: y.earnings?.raw ?? y.earnings ?? null,
+          operatingMargin: null,
+          eps: null,
+        }));
+
+      // Enrich with incomeStatementHistory if available
+      const stmts = summary?.incomeStatementHistory?.incomeStatementHistory;
+      if (stmts && Array.isArray(stmts)) {
+        for (const stmt of stmts) {
+          const yr = new Date(stmt.endDate).getFullYear();
+          const match = results.find((r) => r.fiscalYear === `${yr}年`);
+          if (match) {
+            match.operatingIncome = stmt.operatingIncome?.raw ?? stmt.operatingIncome ?? match.operatingIncome;
+            match.netIncome = stmt.netIncome?.raw ?? stmt.netIncome ?? match.netIncome;
+            match.eps = stmt.dilutedEPS?.raw ?? stmt.dilutedEPS ?? match.eps;
+            if (match.revenue && match.operatingIncome) {
+              match.operatingMargin = Math.round((match.operatingIncome / match.revenue) * 1000) / 10;
+            }
+          }
+        }
+      }
+      if (results.some((r) => r.revenue !== null)) return results;
+    }
+
+    // Try incomeStatementHistory directly
+    const stmts2 = summary?.incomeStatementHistory?.incomeStatementHistory;
+    if (stmts2 && Array.isArray(stmts2) && stmts2.length > 0) {
+      return stmts2
+        .map((s: any) => {
+          const d = new Date(s.endDate);
+          const rev = s.totalRevenue?.raw ?? s.totalRevenue ?? null;
+          const op = s.operatingIncome?.raw ?? s.operatingIncome ?? null;
+          const net = s.netIncome?.raw ?? s.netIncome ?? null;
+          const epsVal = s.dilutedEPS?.raw ?? s.dilutedEPS ?? null;
+          return {
+            date: `${d.getFullYear()}/${d.getMonth() + 1}`,
+            fiscalYear: `${d.getFullYear()}年`,
+            revenue: rev, operatingIncome: op, netIncome: net,
+            operatingMargin: rev && op ? Math.round((op / rev) * 1000) / 10 : null,
+            eps: epsVal,
+          };
+        })
+        .sort((a: FinancialPeriod, b: FinancialPeriod) => a.date.localeCompare(b.date))
+        .slice(-3);
+    }
+  } catch (err) {
+    console.error(`quoteSummary earnings failed for ${code}:`, err);
+  }
+
+  // Approach 2: fundamentalsTimeSeries as fallback
+  try {
     const startDate = new Date();
     startDate.setFullYear(startDate.getFullYear() - 4);
-
     const result: any = await yf.fundamentalsTimeSeries(ticker, {
       period1: startDate.toISOString().split("T")[0],
       type: "annual",
       module: "financials",
     });
-
-    if (!result || !Array.isArray(result)) return [];
-
-    return result
-      .filter((r: any) => r.date)
-      .map((r: any) => {
+    if (result && Array.isArray(result) && result.length > 0) {
+      const mapped = result.filter((r: any) => r.date).map((r: any) => {
         const rev = r.annualTotalRevenue ?? null;
         const op = r.annualOperatingIncome ?? null;
         const net = r.annualNetIncome ?? null;
-        const basicEps = r.annualBasicEPS ?? null;
-        const opMargin = rev && op ? Math.round((op / rev) * 1000) / 10 : null;
         const d = new Date(r.date);
         return {
           date: `${d.getFullYear()}/${d.getMonth() + 1}`,
           fiscalYear: `${d.getFullYear()}年`,
-          revenue: rev,
-          operatingIncome: op,
-          netIncome: net,
-          operatingMargin: opMargin,
-          eps: basicEps,
+          revenue: rev, operatingIncome: op, netIncome: net,
+          operatingMargin: rev && op ? Math.round((op / rev) * 1000) / 10 : null,
+          eps: r.annualBasicEPS ?? null,
         };
-      })
-      .sort((a: FinancialPeriod, b: FinancialPeriod) => a.date.localeCompare(b.date))
-      .slice(-3); // latest 3 periods
+      }).sort((a: FinancialPeriod, b: FinancialPeriod) => a.date.localeCompare(b.date)).slice(-3);
+      if (mapped.some((r: FinancialPeriod) => r.revenue !== null)) return mapped;
+    }
   } catch (err) {
-    console.error(`Failed to fetch financials for ${code}:`, err);
-    return [];
+    console.error(`fundamentalsTimeSeries failed for ${code}:`, err);
   }
+
+  return [];
 }
