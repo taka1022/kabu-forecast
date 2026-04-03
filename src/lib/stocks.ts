@@ -1,6 +1,6 @@
 import YahooFinance from "yahoo-finance2";
 
-const yf = new YahooFinance();
+const yf = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 export const WATCHED_STOCKS = [
   { code: "6098", name: "リクルートHD", nameEn: "Recruit Holdings", sector: "サービス" },
@@ -408,4 +408,56 @@ function calcTrend(history: HistoryPoint[]): number {
   // Annualized return based on daily slope
   const dailyReturn = slope / yMean;
   return dailyReturn * 252;
+}
+
+// --- Phase: Company Financials ---
+export interface FinancialPeriod {
+  date: string;
+  fiscalYear: string;
+  revenue: number | null;
+  operatingIncome: number | null;
+  netIncome: number | null;
+  operatingMargin: number | null;
+  eps: number | null;
+}
+
+export async function fetchFinancials(code: string): Promise<FinancialPeriod[]> {
+  try {
+    const ticker = `${code}.T`;
+    const startDate = new Date();
+    startDate.setFullYear(startDate.getFullYear() - 4);
+
+    const result: any = await yf.fundamentalsTimeSeries(ticker, {
+      period1: startDate.toISOString().split("T")[0],
+      type: "annual",
+      module: "financials",
+    });
+
+    if (!result || !Array.isArray(result)) return [];
+
+    return result
+      .filter((r: any) => r.date)
+      .map((r: any) => {
+        const rev = r.annualTotalRevenue ?? null;
+        const op = r.annualOperatingIncome ?? null;
+        const net = r.annualNetIncome ?? null;
+        const basicEps = r.annualBasicEPS ?? null;
+        const opMargin = rev && op ? Math.round((op / rev) * 1000) / 10 : null;
+        const d = new Date(r.date);
+        return {
+          date: `${d.getFullYear()}/${d.getMonth() + 1}`,
+          fiscalYear: `${d.getFullYear()}年`,
+          revenue: rev,
+          operatingIncome: op,
+          netIncome: net,
+          operatingMargin: opMargin,
+          eps: basicEps,
+        };
+      })
+      .sort((a: FinancialPeriod, b: FinancialPeriod) => a.date.localeCompare(b.date))
+      .slice(-3); // latest 3 periods
+  } catch (err) {
+    console.error(`Failed to fetch financials for ${code}:`, err);
+    return [];
+  }
 }

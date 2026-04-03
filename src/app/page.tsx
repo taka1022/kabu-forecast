@@ -15,9 +15,11 @@ interface Indicators { rsi:number|null; rsiSignal:string; macd:number|null; macd
 interface MacroIndicator { id:string; name:string; nameJa:string; value:number; prevValue:number; change:number; changePct:number; unit:string; direction:"up"|"down"|"flat"; }
 interface SensitivityEntry { factorId:string; factorName:string; score:number; reason:string; }
 interface StockMacroScore { code:string; name:string; totalScore:number; maxPossible:number; normalizedScore:number; signal:string; factors:SensitivityEntry[]; }
+interface FinancialPeriod { date:string; fiscalYear:string; revenue:number|null; operatingIncome:number|null; netIncome:number|null; operatingMargin:number|null; eps:number|null; }
 
 function fmtVol(n:number){if(n>=1e8)return(n/1e8).toFixed(1)+"億";if(n>=1e4)return(n/1e4).toFixed(0)+"万";return n.toLocaleString();}
 function fmtCap(n:number){if(n>=1e12)return(n/1e12).toFixed(1)+"兆";if(n>=1e8)return(n/1e8).toFixed(0)+"億";return n.toLocaleString();}
+function fmtBigNum(n:number){const abs=Math.abs(n);const sign=n<0?"-":"";if(abs>=1e12)return sign+(abs/1e12).toFixed(2)+"兆";if(abs>=1e8)return sign+(abs/1e8).toFixed(0)+"億";if(abs>=1e4)return sign+(abs/1e4).toFixed(0)+"万";return sign+abs.toLocaleString();}
 const PM:Record<string,string>={"1M":"1mo","3M":"3mo","6M":"6mo","1Y":"1y"};
 
 function useIsMobile(){const[m,setM]=useState(false);useEffect(()=>{const c=()=>setM(window.innerWidth<768);c();window.addEventListener("resize",c);return()=>window.removeEventListener("resize",c);},[]);return m;}
@@ -99,10 +101,11 @@ export default function Dashboard(){
   const[macroIndicators,setMacroIndicators]=useState<MacroIndicator[]>([]);
   const[macroScores,setMacroScores]=useState<StockMacroScore[]>([]);
   const[sidebarOpen,setSidebarOpen]=useState(false);
+  const[financials,setFinancials]=useState<FinancialPeriod[]>([]);
 
   useEffect(()=>{(async()=>{try{const r=await fetch("/api/stocks");if(!r.ok)throw new Error();const d=await r.json();setQuotes(d.quotes);setUpdated(d.updatedAt);setErr(null);}catch{setErr("データの取得に失敗しました");}finally{setLoading(false);}})();const iv=setInterval(async()=>{try{const r=await fetch("/api/stocks");if(r.ok){const d=await r.json();setQuotes(d.quotes);setUpdated(d.updatedAt);}}catch{}},300000);return()=>clearInterval(iv);},[]);
   useEffect(()=>{(async()=>{try{const r=await fetch("/api/macro");if(!r.ok)return;const d=await r.json();setMacroIndicators(d.indicators||[]);setMacroScores(d.scores||[]);}catch(e){console.error(e);}})();},[]);
-  const loadH=useCallback(async(code:string,rng:string)=>{setCLoading(true);try{const r=await fetch(`/api/stocks/${code}?period=${PM[rng]||"3mo"}`);if(r.ok){const d=await r.json();setChart(d.history);setTargets(d.targetRanges||[]);setIndicators(d.indicators||null);}}catch{setChart([]);setTargets([]);setIndicators(null);}finally{setCLoading(false);}},[]);
+  const loadH=useCallback(async(code:string,rng:string)=>{setCLoading(true);try{const r=await fetch(`/api/stocks/${code}?period=${PM[rng]||"3mo"}`);if(r.ok){const d=await r.json();setChart(d.history);setTargets(d.targetRanges||[]);setIndicators(d.indicators||null);setFinancials(d.financials||[]);}}catch{setChart([]);setTargets([]);setIndicators(null);setFinancials([]);}finally{setCLoading(false);}},[]);
   useEffect(()=>{loadH(sel,range);},[sel,range,loadH]);
 
   const stk=quotes.find(q=>q.code===sel);
@@ -411,6 +414,54 @@ export default function Dashboard(){
                 ))}
               </div>
             </Card>
+
+            {/* Company Financials */}
+            {financials.length>0&&(
+              <Card style={{marginBottom:14,overflow:"hidden"}}>
+                <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border-light)",fontSize:13,fontWeight:700,color:"var(--accent)"}}>企業業績（年次）</div>
+                <div style={{overflowX:"auto"}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",minWidth:mobile?400:0}}>
+                    <thead>
+                      <tr style={{borderBottom:"1px solid var(--border)"}}>
+                        <th style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"left",fontSize:mobile?10:11,fontWeight:600,color:"var(--text-muted)",whiteSpace:"nowrap"}}>決算期</th>
+                        <th style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right",fontSize:mobile?10:11,fontWeight:600,color:"var(--text-muted)",whiteSpace:"nowrap"}}>売上高</th>
+                        <th style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right",fontSize:mobile?10:11,fontWeight:600,color:"var(--text-muted)",whiteSpace:"nowrap"}}>営業利益</th>
+                        <th style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right",fontSize:mobile?10:11,fontWeight:600,color:"var(--text-muted)",whiteSpace:"nowrap"}}>純利益</th>
+                        <th style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right",fontSize:mobile?10:11,fontWeight:600,color:"var(--text-muted)",whiteSpace:"nowrap"}}>営業利益率</th>
+                        <th style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right",fontSize:mobile?10:11,fontWeight:600,color:"var(--text-muted)",whiteSpace:"nowrap"}}>EPS</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {financials.map((f,i)=>{
+                        const prev = i>0?financials[i-1]:null;
+                        const revGrowth = prev?.revenue&&f.revenue?((f.revenue-prev.revenue)/Math.abs(prev.revenue)*100):null;
+                        const opGrowth = prev?.operatingIncome&&f.operatingIncome?((f.operatingIncome-prev.operatingIncome)/Math.abs(prev.operatingIncome)*100):null;
+                        return(
+                          <tr key={f.date} style={{borderBottom:"1px solid var(--border-light)"}}>
+                            <td style={{padding:mobile?"8px 10px":"10px 16px",fontSize:mobile?11:12,fontWeight:600,color:"var(--accent)"}}>{f.fiscalYear}</td>
+                            <td style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right"}}>
+                              <div className="mono" style={{fontSize:mobile?11:13,fontWeight:600}}>{f.revenue?fmtBigNum(f.revenue):"—"}</div>
+                              {revGrowth!==null&&<div className="mono" style={{fontSize:9,color:revGrowth>=0?"var(--green)":"var(--red)",marginTop:1}}>({revGrowth>=0?"+":""}{revGrowth.toFixed(1)}%)</div>}
+                            </td>
+                            <td style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right"}}>
+                              <div className="mono" style={{fontSize:mobile?11:13,fontWeight:600}}>{f.operatingIncome?fmtBigNum(f.operatingIncome):"—"}</div>
+                              {opGrowth!==null&&<div className="mono" style={{fontSize:9,color:opGrowth>=0?"var(--green)":"var(--red)",marginTop:1}}>({opGrowth>=0?"+":""}{opGrowth.toFixed(1)}%)</div>}
+                            </td>
+                            <td className="mono" style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right",fontSize:mobile?11:13,fontWeight:600}}>{f.netIncome?fmtBigNum(f.netIncome):"—"}</td>
+                            <td style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right"}}>
+                              <span className="mono" style={{fontSize:mobile?11:13,fontWeight:600,color:f.operatingMargin&&f.operatingMargin>=10?"var(--green)":"var(--text-primary)"}}>{f.operatingMargin?f.operatingMargin.toFixed(1)+"%":"—"}</span>
+                            </td>
+                            <td className="mono" style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right",fontSize:mobile?11:13,fontWeight:600}}>
+                              {f.eps?`¥${f.eps.toFixed(1)}`:"—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
           </>):<div style={{color:"var(--text-muted)",textAlign:"center",marginTop:80}}>銘柄を選択してください</div>}
         </main>
       </div>

@@ -7,6 +7,7 @@ import {
   computeRSI,
   computeMACD,
   computeTargetRanges,
+  fetchFinancials,
 } from "@/lib/stocks";
 
 export const revalidate = 60;
@@ -24,11 +25,12 @@ export async function GET(
     | "1y";
 
   try {
-    // Fetch display history + 1y history for target range calculation
-    const [quote, history, fullHistory] = await Promise.all([
+    // Fetch display history + 1y history for target range calculation + financials
+    const [quote, history, fullHistory, financials] = await Promise.all([
       fetchStockQuote(code),
       fetchHistory(code, period),
       fetchHistory(code, "1y"),
+      fetchFinancials(code),
     ]);
 
     if (!quote) {
@@ -98,6 +100,7 @@ export async function GET(
         macdTrend,
       },
       updatedAt: new Date().toISOString(),
+      financials,
     });
   } catch (error) {
     console.error(`Failed to fetch stock ${code}:`, error);
