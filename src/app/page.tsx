@@ -275,30 +275,53 @@ export default function Dashboard(){
             </Card>
 
             {/* RSI / MACD sub chart */}
-            <Card style={{padding:mobile?"10px 6px 6px 0":"14px 16px 8px 0",marginBottom:14}}>
-              <div style={{display:"flex",gap:4,padding:mobile?"0 10px":"0 16px",marginBottom:6}}>
+            <Card style={{padding:mobile?"10px 6px 10px 0":"14px 16px 12px 0",marginBottom:14}}>
+              <div style={{display:"flex",gap:4,padding:mobile?"0 10px":"0 16px",marginBottom:8}}>
                 {(["rsi","macd"] as const).map(t=>(<button key={t} onClick={()=>setSubChart(t)} className="mono" style={{fontSize:11,padding:"4px 12px",borderRadius:6,border:"none",cursor:"pointer",background:subChart===t?"var(--accent)":"var(--bg-card-alt)",color:subChart===t?"#fff":"var(--text-muted)",fontWeight:600,transition:"all 0.15s"}}>{t.toUpperCase()}</button>))}
               </div>
               {subChart==="rsi"?(
-                <ResponsiveContainer width="100%" height={mobile?75:110}>
+                <>
+                <ResponsiveContainer width="100%" height={mobile?160:220}>
                   <AreaChart data={chart} margin={{top:5,right:mobile?4:10,left:mobile?0:10,bottom:5}}>
                     <defs><linearGradient id="rsiFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--accent)" stopOpacity={0.08}/><stop offset="100%" stopColor="var(--accent)" stopOpacity={0}/></linearGradient></defs>
-                    <XAxis dataKey="date" tick={{fontSize:8,fill:"#BBB",fontFamily:"DM Mono"}} axisLine={{stroke:"var(--border-light)"}} tickLine={false} interval={xInterval}/>
-                    <YAxis domain={[0,100]} ticks={[30,70]} tick={{fontSize:8,fill:"#BBB",fontFamily:"DM Mono"}} axisLine={false} tickLine={false} width={mobile?25:30}/>
-                    <Tooltip content={<RsiTip/>}/><ReferenceLine y={70} stroke="var(--red)" strokeDasharray="3 3" strokeOpacity={0.4}/><ReferenceLine y={30} stroke="var(--green)" strokeDasharray="3 3" strokeOpacity={0.4}/>
+                    <XAxis dataKey="date" tick={{fontSize:mobile?8:10,fill:"#BBB",fontFamily:"DM Mono"}} axisLine={{stroke:"var(--border-light)"}} tickLine={false} interval={xInterval}/>
+                    <YAxis domain={[0,100]} ticks={[20,30,50,70,80]} tick={{fontSize:mobile?8:10,fill:"#BBB",fontFamily:"DM Mono"}} axisLine={false} tickLine={false} width={mobile?25:35}/>
+                    <Tooltip content={<RsiTip/>}/><ReferenceLine y={70} stroke="var(--red)" strokeDasharray="3 3" strokeOpacity={0.4}/><ReferenceLine y={30} stroke="var(--green)" strokeDasharray="3 3" strokeOpacity={0.4}/><ReferenceLine y={50} stroke="#D4D4D4" strokeDasharray="2 4" strokeOpacity={0.3}/>
                     <Area type="monotone" dataKey="rsi" stroke="var(--accent)" strokeWidth={1.5} fill="url(#rsiFill)" dot={false} connectNulls={false}/>
                   </AreaChart>
                 </ResponsiveContainer>
+                {/* RSI解説 */}
+                <div style={{padding:mobile?"10px 12px":"12px 16px",borderTop:"1px solid var(--border-light)",marginTop:4}}>
+                  <div style={{fontSize:mobile?10:11,color:"var(--text-muted)",lineHeight:1.7}}>
+                    <span style={{fontWeight:600,color:"var(--accent)"}}>RSI（相対力指数）</span>：直近14日間の上昇・下落のバランスを0〜100で表示。
+                    <span style={{color:"var(--red)",fontWeight:500}}>70以上</span>は買われすぎ（過熱）、
+                    <span style={{color:"var(--green)",fontWeight:500}}>30以下</span>は売られすぎ（反発の可能性）。
+                    50付近は中立。ただし強いトレンド時は70超えでもさらに上昇することがある。
+                  </div>
+                </div>
+                </>
               ):(
-                <ResponsiveContainer width="100%" height={mobile?75:110}>
+                <>
+                <ResponsiveContainer width="100%" height={mobile?160:220}>
                   <ComposedChart data={chart} margin={{top:5,right:mobile?4:10,left:mobile?0:10,bottom:5}}>
-                    <XAxis dataKey="date" tick={{fontSize:8,fill:"#BBB",fontFamily:"DM Mono"}} axisLine={{stroke:"var(--border-light)"}} tickLine={false} interval={xInterval}/>
-                    <YAxis tick={{fontSize:8,fill:"#BBB",fontFamily:"DM Mono"}} axisLine={false} tickLine={false} width={mobile?30:40}/><Tooltip content={<MacdTip/>}/><ReferenceLine y={0} stroke="#D4D4D4" strokeDasharray="3 3"/>
-                    <Bar dataKey="macdHist" barSize={2}>{chart.map((d,i)=><Cell key={i} fill={(d.macdHist??0)>=0?"var(--green)":"var(--red)"} fillOpacity={0.5}/>)}</Bar>
+                    <XAxis dataKey="date" tick={{fontSize:mobile?8:10,fill:"#BBB",fontFamily:"DM Mono"}} axisLine={{stroke:"var(--border-light)"}} tickLine={false} interval={xInterval}/>
+                    <YAxis tick={{fontSize:mobile?8:10,fill:"#BBB",fontFamily:"DM Mono"}} axisLine={false} tickLine={false} width={mobile?35:45}/><Tooltip content={<MacdTip/>}/><ReferenceLine y={0} stroke="#D4D4D4" strokeDasharray="3 3"/>
+                    <Bar dataKey="macdHist" barSize={mobile?2:3}>{chart.map((d,i)=><Cell key={i} fill={(d.macdHist??0)>=0?"var(--green)":"var(--red)"} fillOpacity={0.5}/>)}</Bar>
                     <Line type="monotone" dataKey="macd" stroke="var(--accent)" strokeWidth={1.5} dot={false} connectNulls={false}/>
                     <Line type="monotone" dataKey="macdSignal" stroke="var(--purple)" strokeWidth={1} dot={false} strokeDasharray="4 2" connectNulls={false}/>
                   </ComposedChart>
                 </ResponsiveContainer>
+                {/* MACD解説 */}
+                <div style={{padding:mobile?"10px 12px":"12px 16px",borderTop:"1px solid var(--border-light)",marginTop:4}}>
+                  <div style={{fontSize:mobile?10:11,color:"var(--text-muted)",lineHeight:1.7}}>
+                    <span style={{fontWeight:600,color:"var(--accent)"}}>MACD</span>：短期（12日）と長期（26日）の移動平均の差でトレンド転換を探る。
+                    <span style={{color:"var(--accent)",fontWeight:500}}>MACDライン</span>が
+                    <span style={{color:"var(--purple)",fontWeight:500}}>シグナルライン</span>を上抜け → 買いシグナル（ゴールデンクロス）、下抜け → 売りシグナル（デッドクロス）。
+                    <span style={{color:"var(--green)",fontWeight:500}}>緑の棒</span>は上昇の勢い、
+                    <span style={{color:"var(--red)",fontWeight:500}}>赤の棒</span>は下落の勢い。RSIと併用すると信頼度が上がる。
+                  </div>
+                </div>
+                </>
               )}
             </Card>
 
