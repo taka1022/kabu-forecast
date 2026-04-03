@@ -4,5 +4,4 @@ const nextConfig = {
     serverComponentsExternalPackages: ["yahoo-finance2"],
   },
 };
-
 export default nextConfig;

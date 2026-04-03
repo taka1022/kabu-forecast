@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   AreaChart, Area, Line, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, ReferenceLine,
+  ResponsiveContainer, ReferenceLine, BarChart, Bar, Cell,
+  ComposedChart,
 } from "recharts";
 
 interface StockQuote {
@@ -18,6 +19,22 @@ interface StockQuote {
 interface ChartPoint {
   date: string; price: number; volume: number;
   ma25: number | null; ma75: number | null;
+  bbUpper2: number | null; bbUpper1: number | null; bbMid: number | null;
+  bbLower1: number | null; bbLower2: number | null;
+  rsi: number | null;
+  macd: number | null; macdSignal: number | null; macdHist: number | null;
+}
+
+interface TargetRange {
+  label: string; period: string;
+  low: number; mid: number; high: number;
+  currentPrice: number; positionPct: number;
+}
+
+interface Indicators {
+  rsi: number | null; rsiSignal: string;
+  macd: number | null; macdSignal: number | null;
+  macdHistogram: number | null; macdTrend: string;
 }
 
 function fmtVol(n: number) {
@@ -25,7 +42,6 @@ function fmtVol(n: number) {
   if (n >= 1e4) return (n / 1e4).toFixed(0) + "万";
   return n.toLocaleString();
 }
-
 function fmtCap(n: number) {
   if (n >= 1e12) return (n / 1e12).toFixed(1) + "兆";
   if (n >= 1e8) return (n / 1e8).toFixed(0) + "億";
@@ -34,16 +50,80 @@ function fmtCap(n: number) {
 
 const PM: Record<string, string> = { "1M":"1mo","3M":"3mo","6M":"6mo","1Y":"1y" };
 
-function CTip({ active, payload, label }: any) {
+function PriceTip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   return (
-    <div className="mono" style={{ background:"rgba(15,23,42,0.95)", border:"1px solid rgba(34,211,238,0.3)", borderRadius:6, padding:"10px 14px", fontSize:12 }}>
+    <div className="mono" style={{ background:"rgba(15,23,42,0.95)", border:"1px solid rgba(34,211,238,0.3)", borderRadius:6, padding:"10px 14px", fontSize:11 }}>
       <div style={{ color:"#94a3b8", marginBottom:4 }}>{label}</div>
-      <div style={{ color:"#f8fafc", fontWeight:700 }}>¥{d?.price?.toLocaleString()}</div>
-      {d?.ma25 && <div style={{ color:"#fbbf24", fontSize:11 }}>MA25: ¥{d.ma25.toLocaleString()}</div>}
-      {d?.ma75 && <div style={{ color:"#a78bfa", fontSize:11 }}>MA75: ¥{d.ma75.toLocaleString()}</div>}
-      <div style={{ color:"#64748b", fontSize:11, marginTop:2 }}>出来高: {fmtVol(d?.volume||0)}</div>
+      <div style={{ color:"#f8fafc", fontWeight:700, fontSize:13 }}>¥{d?.price?.toLocaleString()}</div>
+      {d?.bbUpper2 && <div style={{ color:"#64748b" }}>BB: ¥{d.bbLower2?.toLocaleString()} — ¥{d.bbUpper2?.toLocaleString()}</div>}
+      {d?.ma25 && <div style={{ color:"#fbbf24" }}>MA25: ¥{d.ma25.toLocaleString()}</div>}
+      <div style={{ color:"#64748b", marginTop:2 }}>出来高: {fmtVol(d?.volume||0)}</div>
+    </div>
+  );
+}
+
+function RsiTip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  const v = payload[0]?.value;
+  return (
+    <div className="mono" style={{ background:"rgba(15,23,42,0.95)", border:"1px solid rgba(34,211,238,0.3)", borderRadius:6, padding:"8px 12px", fontSize:11 }}>
+      <div style={{ color:"#94a3b8" }}>{label}</div>
+      <div style={{ color: v >= 70 ? "#f87171" : v <= 30 ? "#34d399" : "#e2e8f0", fontWeight:700 }}>RSI: {v?.toFixed(1)}</div>
+    </div>
+  );
+}
+
+function MacdTip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
+  return (
+    <div className="mono" style={{ background:"rgba(15,23,42,0.95)", border:"1px solid rgba(34,211,238,0.3)", borderRadius:6, padding:"8px 12px", fontSize:11 }}>
+      <div style={{ color:"#94a3b8" }}>{label}</div>
+      {d?.macd != null && <div style={{ color:"#22d3ee" }}>MACD: {d.macd.toFixed(1)}</div>}
+      {d?.macdSignal != null && <div style={{ color:"#f472b6" }}>Signal: {d.macdSignal.toFixed(1)}</div>}
+      {d?.macdHist != null && <div style={{ color: d.macdHist >= 0 ? "#34d399" : "#f87171" }}>Hist: {d.macdHist.toFixed(1)}</div>}
+    </div>
+  );
+}
+
+// Target Range Bar Component
+function RangeBar({ range }: { range: TargetRange }) {
+  const pos = Math.max(0, Math.min(100, range.positionPct));
+  return (
+    <div style={{ padding:"14px 16px", background:"rgba(15,23,42,0.4)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:6 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
+        <span style={{ fontSize:13, fontWeight:600 }}>{range.label}</span>
+        <span className="mono" style={{ fontSize:10, color:"#64748b" }}>{range.period}</span>
+      </div>
+      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+        <span className="mono" style={{ fontSize:12, color:"#f87171" }}>¥{range.low.toLocaleString()}</span>
+        <span className="mono" style={{ fontSize:12, color:"#22d3ee" }}>¥{range.mid.toLocaleString()}</span>
+        <span className="mono" style={{ fontSize:12, color:"#34d399" }}>¥{range.high.toLocaleString()}</span>
+      </div>
+      {/* Range bar */}
+      <div style={{ position:"relative", height:8, background:"rgba(255,255,255,0.06)", borderRadius:4, overflow:"hidden" }}>
+        <div style={{ position:"absolute", left:"0%", right:"0%", top:0, bottom:0,
+          background:"linear-gradient(90deg, #f87171, #fbbf24, #34d399)", opacity:0.3, borderRadius:4 }} />
+        <div style={{ position:"absolute", left:`${pos}%`, top:-2, width:12, height:12,
+          background:"#22d3ee", borderRadius:"50%", transform:"translateX(-50%)",
+          boxShadow:"0 0 8px rgba(34,211,238,0.5)", border:"2px solid #0f172a" }} />
+      </div>
+      <div style={{ textAlign:"center", marginTop:6 }}>
+        <span className="mono" style={{ fontSize:11, color:"#94a3b8" }}>現在値: </span>
+        <span className="mono" style={{ fontSize:12, fontWeight:700, color:"#f8fafc" }}>¥{range.currentPrice.toLocaleString()}</span>
+      </div>
+    </div>
+  );
+}
+
+// Signal badge
+function SignalBadge({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div style={{ textAlign:"center", padding:"12px 8px" }}>
+      <div style={{ fontSize:10, color:"#64748b", letterSpacing:1, marginBottom:4 }}>{label}</div>
+      <div className="mono" style={{ fontSize:14, fontWeight:700, color }}>{value}</div>
     </div>
   );
 }
@@ -57,6 +137,10 @@ export default function Dashboard() {
   const [cLoading, setCLoading] = useState(false);
   const [updated, setUpdated] = useState("");
   const [err, setErr] = useState<string|null>(null);
+  const [targets, setTargets] = useState<TargetRange[]>([]);
+  const [indicators, setIndicators] = useState<Indicators|null>(null);
+  const [showBB, setShowBB] = useState(true);
+  const [subChart, setSubChart] = useState<"rsi"|"macd">("rsi");
 
   useEffect(() => {
     (async () => {
@@ -69,10 +153,7 @@ export default function Dashboard() {
       finally { setLoading(false); }
     })();
     const iv = setInterval(async () => {
-      try {
-        const r = await fetch("/api/stocks");
-        if (r.ok) { const d = await r.json(); setQuotes(d.quotes); setUpdated(d.updatedAt); }
-      } catch {}
+      try { const r = await fetch("/api/stocks"); if (r.ok) { const d = await r.json(); setQuotes(d.quotes); setUpdated(d.updatedAt); } } catch {}
     }, 300000);
     return () => clearInterval(iv);
   }, []);
@@ -81,8 +162,13 @@ export default function Dashboard() {
     setCLoading(true);
     try {
       const r = await fetch(`/api/stocks/${code}?period=${PM[rng]||"3mo"}`);
-      if (r.ok) { const d = await r.json(); setChart(d.history); }
-    } catch { setChart([]); }
+      if (r.ok) {
+        const d = await r.json();
+        setChart(d.history);
+        setTargets(d.targetRanges || []);
+        setIndicators(d.indicators || null);
+      }
+    } catch { setChart([]); setTargets([]); setIndicators(null); }
     finally { setCLoading(false); }
   }, []);
 
@@ -91,8 +177,14 @@ export default function Dashboard() {
   const stk = quotes.find(q => q.code === sel);
   const isUp = stk ? stk.change >= 0 : true;
   const prices = chart.map(d => d.price).filter(Boolean);
-  const pMin = prices.length ? Math.min(...prices)*0.995 : 0;
-  const pMax = prices.length ? Math.max(...prices)*1.005 : 100;
+  const allBBValues = showBB
+    ? [...chart.map(d=>d.bbUpper2).filter(Boolean) as number[], ...chart.map(d=>d.bbLower2).filter(Boolean) as number[]]
+    : [];
+  const allValues = [...prices, ...allBBValues];
+  const pMin = allValues.length ? Math.min(...allValues)*0.995 : 0;
+  const pMax = allValues.length ? Math.max(...allValues)*1.005 : 100;
+
+  const xInterval = Math.max(1, Math.floor(chart.length / 7));
 
   if (loading) return (
     <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16 }}>
@@ -117,7 +209,7 @@ export default function Dashboard() {
             <div style={{ width:8, height:8, borderRadius:"50%", background:"#22d3ee", boxShadow:"0 0 8px rgba(34,211,238,0.5)" }} />
             <span style={{ fontSize:16, fontWeight:700, letterSpacing:2, color:"#f8fafc" }}>KABU<span style={{ color:"#22d3ee" }}>FORECAST</span></span>
           </div>
-          <span className="mono" style={{ fontSize:11, color:"#475569" }}>Phase 1</span>
+          <span className="mono" style={{ fontSize:11, color:"#475569" }}>Phase 2</span>
         </div>
         {updated && <span className="mono" style={{ fontSize:10, color:"#475569" }}>更新: {new Date(updated).toLocaleTimeString("ja-JP")}</span>}
       </header>
@@ -164,7 +256,7 @@ export default function Dashboard() {
         <main style={{ flex:1, padding:24, overflowY:"auto" }}>
           {stk ? (<>
             {/* Header */}
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:24 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
               <div>
                 <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:4 }}>
                   <span className="mono" style={{ fontSize:11, color:"#0f172a", background:"#22d3ee", padding:"2px 8px", borderRadius:3, fontWeight:700 }}>{stk.code}</span>
@@ -183,30 +275,124 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Chart */}
-            <div style={{ background:"rgba(15,23,42,0.4)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:8, padding:"20px 16px 8px 0", marginBottom:20, position:"relative" }}>
-              {cLoading && <div style={{ position:"absolute", top:12, right:16, display:"flex", alignItems:"center", gap:6 }}><div className="loading-pulse" style={{ width:6, height:6, borderRadius:"50%", background:"#22d3ee" }} /><span className="mono" style={{ fontSize:10, color:"#475569" }}>読込中</span></div>}
-              <ResponsiveContainer width="100%" height={320}>
+            {/* Indicator Summary Bar */}
+            {indicators && (
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:16 }}>
+                <div style={{ background:"rgba(15,23,42,0.4)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:6 }}>
+                  <SignalBadge label="RSI (14)" value={indicators.rsi?.toFixed(1) ?? "—"} color={indicators.rsiSignal==="買われすぎ"?"#f87171":indicators.rsiSignal==="売られすぎ"?"#34d399":"#e2e8f0"} />
+                  <div style={{ textAlign:"center", paddingBottom:8 }}>
+                    <span style={{ fontSize:10, padding:"2px 6px", borderRadius:3, background: indicators.rsiSignal==="買われすぎ"?"rgba(248,113,113,0.15)":indicators.rsiSignal==="売られすぎ"?"rgba(52,211,153,0.15)":"rgba(255,255,255,0.05)",
+                      color: indicators.rsiSignal==="買われすぎ"?"#f87171":indicators.rsiSignal==="売られすぎ"?"#34d399":"#64748b" }}>{indicators.rsiSignal}</span>
+                  </div>
+                </div>
+                <div style={{ background:"rgba(15,23,42,0.4)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:6 }}>
+                  <SignalBadge label="MACD" value={indicators.macd?.toFixed(1) ?? "—"} color="#22d3ee" />
+                  <div style={{ textAlign:"center", paddingBottom:8 }}>
+                    <span style={{ fontSize:10, padding:"2px 6px", borderRadius:3, background: indicators.macdTrend==="上昇トレンド"?"rgba(52,211,153,0.15)":indicators.macdTrend==="下降トレンド"?"rgba(248,113,113,0.15)":"rgba(255,255,255,0.05)",
+                      color: indicators.macdTrend==="上昇トレンド"?"#34d399":indicators.macdTrend==="下降トレンド"?"#f87171":"#64748b" }}>{indicators.macdTrend}</span>
+                  </div>
+                </div>
+                <div style={{ background:"rgba(15,23,42,0.4)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:6 }}>
+                  <SignalBadge label="PER" value={stk.per?.toFixed(1) ?? "—"} color={(stk.per??99)<15?"#22d3ee":"#e2e8f0"} />
+                  <div style={{ textAlign:"center", paddingBottom:8 }}><span style={{ fontSize:10, color:"#64748b" }}>倍</span></div>
+                </div>
+                <div style={{ background:"rgba(15,23,42,0.4)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:6 }}>
+                  <SignalBadge label="配当利回" value={stk.dividendYield?.toFixed(2) ?? "—"} color={(stk.dividendYield??0)>3?"#22d3ee":"#e2e8f0"} />
+                  <div style={{ textAlign:"center", paddingBottom:8 }}><span style={{ fontSize:10, color:"#64748b" }}>%</span></div>
+                </div>
+              </div>
+            )}
+
+            {/* Main Chart with BB toggle */}
+            <div style={{ background:"rgba(15,23,42,0.4)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:8, padding:"16px 16px 8px 0", marginBottom:12, position:"relative" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0 16px", marginBottom:8 }}>
+                <span style={{ fontSize:12, fontWeight:600, color:"#94a3b8" }}>株価チャート</span>
+                <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                  {cLoading && <div style={{ display:"flex", alignItems:"center", gap:4 }}><div className="loading-pulse" style={{ width:6, height:6, borderRadius:"50%", background:"#22d3ee" }} /><span className="mono" style={{ fontSize:10, color:"#475569" }}>読込中</span></div>}
+                  <button onClick={() => setShowBB(!showBB)} className="mono" style={{ fontSize:10, padding:"3px 8px", borderRadius:3, border:"1px solid", cursor:"pointer",
+                    borderColor:showBB?"rgba(139,92,246,0.4)":"rgba(255,255,255,0.08)", background:showBB?"rgba(139,92,246,0.1)":"transparent", color:showBB?"#a78bfa":"#64748b" }}>BB</button>
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height={280}>
                 <AreaChart data={chart} margin={{ top:5, right:10, left:10, bottom:5 }}>
-                  <defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={isUp?"#34d399":"#f87171"} stopOpacity={0.2} /><stop offset="100%" stopColor={isUp?"#34d399":"#f87171"} stopOpacity={0} /></linearGradient></defs>
-                  <XAxis dataKey="date" tick={{ fontSize:10, fill:"#475569", fontFamily:"JetBrains Mono" }} axisLine={{ stroke:"rgba(255,255,255,0.06)" }} tickLine={false} interval={Math.max(1,Math.floor(chart.length/7))} />
+                  <defs>
+                    <linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={isUp?"#34d399":"#f87171"} stopOpacity={0.15} /><stop offset="100%" stopColor={isUp?"#34d399":"#f87171"} stopOpacity={0} /></linearGradient>
+                    <linearGradient id="bbFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#a78bfa" stopOpacity={0.08} /><stop offset="100%" stopColor="#a78bfa" stopOpacity={0.02} /></linearGradient>
+                  </defs>
+                  <XAxis dataKey="date" tick={{ fontSize:10, fill:"#475569", fontFamily:"JetBrains Mono" }} axisLine={{ stroke:"rgba(255,255,255,0.06)" }} tickLine={false} interval={xInterval} />
                   <YAxis domain={[pMin,pMax]} tick={{ fontSize:10, fill:"#475569", fontFamily:"JetBrains Mono" }} axisLine={false} tickLine={false} tickFormatter={(v:number) => `¥${Math.round(v).toLocaleString()}`} width={80} />
-                  <Tooltip content={<CTip />} />
+                  <Tooltip content={<PriceTip />} />
                   <ReferenceLine y={stk.prevClose} stroke="#475569" strokeDasharray="3 3" />
+                  {showBB && <>
+                    <Area type="monotone" dataKey="bbUpper2" stroke="none" fill="none" dot={false} />
+                    <Area type="monotone" dataKey="bbLower2" stroke="none" fill="url(#bbFill)" dot={false} />
+                    <Line type="monotone" dataKey="bbUpper2" stroke="#a78bfa" strokeWidth={0.5} dot={false} strokeOpacity={0.5} />
+                    <Line type="monotone" dataKey="bbLower2" stroke="#a78bfa" strokeWidth={0.5} dot={false} strokeOpacity={0.5} />
+                    <Line type="monotone" dataKey="bbUpper1" stroke="#a78bfa" strokeWidth={0.5} dot={false} strokeDasharray="2 2" strokeOpacity={0.3} />
+                    <Line type="monotone" dataKey="bbLower1" stroke="#a78bfa" strokeWidth={0.5} dot={false} strokeDasharray="2 2" strokeOpacity={0.3} />
+                  </>}
                   <Area type="monotone" dataKey="price" stroke={isUp?"#34d399":"#f87171"} strokeWidth={2} fill="url(#pg)" dot={false} activeDot={{ r:4, fill:"#22d3ee", stroke:"#0f172a", strokeWidth:2 }} />
                   <Line type="monotone" dataKey="ma25" stroke="#fbbf24" strokeWidth={1} dot={false} strokeDasharray="4 2" connectNulls={false} />
-                  <Line type="monotone" dataKey="ma75" stroke="#a78bfa" strokeWidth={1} dot={false} strokeDasharray="4 2" connectNulls={false} />
                 </AreaChart>
               </ResponsiveContainer>
-              <div style={{ display:"flex", gap:20, padding:"8px 16px", justifyContent:"center" }}>
-                {[{l:"株価",c:isUp?"#34d399":"#f87171"},{l:"MA25",c:"#fbbf24"},{l:"MA75",c:"#a78bfa"},{l:"前日終値",c:"#475569"}].map(x => (
-                  <div key={x.l} style={{ display:"flex", alignItems:"center", gap:6 }}><div style={{ width:16, height:2, background:x.c }} /><span style={{ fontSize:10, color:"#64748b" }}>{x.l}</span></div>
+              <div style={{ display:"flex", gap:16, padding:"4px 16px", justifyContent:"center" }}>
+                {[{l:"株価",c:isUp?"#34d399":"#f87171"},{l:"MA25",c:"#fbbf24"},{l:"BB ±2σ",c:"#a78bfa"},{l:"前日終値",c:"#475569"}].map(x => (
+                  <div key={x.l} style={{ display:"flex", alignItems:"center", gap:4 }}><div style={{ width:12, height:2, background:x.c }} /><span style={{ fontSize:9, color:"#64748b" }}>{x.l}</span></div>
                 ))}
               </div>
             </div>
 
-            {/* OHLCV */}
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:20 }}>
+            {/* Sub-chart: RSI or MACD */}
+            <div style={{ background:"rgba(15,23,42,0.4)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:8, padding:"12px 16px 8px 0", marginBottom:16 }}>
+              <div style={{ display:"flex", gap:8, padding:"0 16px", marginBottom:8 }}>
+                {(["rsi","macd"] as const).map(t => (
+                  <button key={t} onClick={() => setSubChart(t)} className="mono" style={{ fontSize:11, padding:"4px 12px", borderRadius:3, border:"1px solid", cursor:"pointer",
+                    borderColor:subChart===t?"#22d3ee":"rgba(255,255,255,0.08)", background:subChart===t?"rgba(34,211,238,0.1)":"transparent", color:subChart===t?"#22d3ee":"#64748b", fontWeight:600 }}>{t.toUpperCase()}</button>
+                ))}
+              </div>
+              {subChart === "rsi" ? (
+                <ResponsiveContainer width="100%" height={120}>
+                  <AreaChart data={chart} margin={{ top:5, right:10, left:10, bottom:5 }}>
+                    <defs><linearGradient id="rsiFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#22d3ee" stopOpacity={0.1} /><stop offset="100%" stopColor="#22d3ee" stopOpacity={0} /></linearGradient></defs>
+                    <XAxis dataKey="date" tick={{ fontSize:9, fill:"#475569", fontFamily:"JetBrains Mono" }} axisLine={{ stroke:"rgba(255,255,255,0.06)" }} tickLine={false} interval={xInterval} />
+                    <YAxis domain={[0,100]} ticks={[30,50,70]} tick={{ fontSize:9, fill:"#475569", fontFamily:"JetBrains Mono" }} axisLine={false} tickLine={false} width={30} />
+                    <Tooltip content={<RsiTip />} />
+                    <ReferenceLine y={70} stroke="#f87171" strokeDasharray="3 3" strokeOpacity={0.5} />
+                    <ReferenceLine y={30} stroke="#34d399" strokeDasharray="3 3" strokeOpacity={0.5} />
+                    <Area type="monotone" dataKey="rsi" stroke="#22d3ee" strokeWidth={1.5} fill="url(#rsiFill)" dot={false} connectNulls={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <ResponsiveContainer width="100%" height={120}>
+                  <ComposedChart data={chart} margin={{ top:5, right:10, left:10, bottom:5 }}>
+                    <XAxis dataKey="date" tick={{ fontSize:9, fill:"#475569", fontFamily:"JetBrains Mono" }} axisLine={{ stroke:"rgba(255,255,255,0.06)" }} tickLine={false} interval={xInterval} />
+                    <YAxis tick={{ fontSize:9, fill:"#475569", fontFamily:"JetBrains Mono" }} axisLine={false} tickLine={false} width={40} />
+                    <Tooltip content={<MacdTip />} />
+                    <ReferenceLine y={0} stroke="#475569" strokeDasharray="3 3" />
+                    <Bar dataKey="macdHist" barSize={2}>
+                      {chart.map((d, i) => <Cell key={i} fill={(d.macdHist??0) >= 0 ? "#34d399" : "#f87171"} fillOpacity={0.6} />)}
+                    </Bar>
+                    <Line type="monotone" dataKey="macd" stroke="#22d3ee" strokeWidth={1.5} dot={false} connectNulls={false} />
+                    <Line type="monotone" dataKey="macdSignal" stroke="#f472b6" strokeWidth={1} dot={false} strokeDasharray="4 2" connectNulls={false} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+            {/* Target Price Ranges */}
+            {targets.length > 0 && (
+              <div style={{ marginBottom:16 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:"#94a3b8", letterSpacing:1, marginBottom:10 }}>
+                  目標株価レンジ
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12 }}>
+                  {targets.map(t => <RangeBar key={t.label} range={t} />)}
+                </div>
+              </div>
+            )}
+
+            {/* OHLCV + Fundamentals */}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:16 }}>
               {[{l:"始値",v:`¥${stk.open.toLocaleString()}`},{l:"高値",v:`¥${stk.high.toLocaleString()}`},{l:"安値",v:`¥${stk.low.toLocaleString()}`},{l:"出来高",v:fmtVol(stk.volume)}].map(m => (
                 <div key={m.l} style={{ background:"rgba(15,23,42,0.4)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:6, padding:"12px 14px" }}>
                   <div style={{ fontSize:10, color:"#64748b", letterSpacing:1, marginBottom:4 }}>{m.l}</div>
@@ -215,8 +401,7 @@ export default function Dashboard() {
               ))}
             </div>
 
-            {/* Fundamentals */}
-            <div style={{ background:"rgba(15,23,42,0.4)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:8, marginBottom:20 }}>
+            <div style={{ background:"rgba(15,23,42,0.4)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:8 }}>
               <div style={{ padding:"12px 16px", borderBottom:"1px solid rgba(255,255,255,0.04)", fontSize:12, fontWeight:600, color:"#94a3b8", letterSpacing:1 }}>ファンダメンタルズ</div>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(6,1fr)", padding:"8px 0" }}>
                 {[
@@ -230,25 +415,6 @@ export default function Dashboard() {
                   <div key={m.l} style={{ textAlign:"center", padding:"10px 6px" }}>
                     <div style={{ color:"#64748b", fontSize:10, letterSpacing:1, marginBottom:4 }}>{m.l}</div>
                     <div className="mono" style={{ color:m.h?"#22d3ee":"#e2e8f0", fontSize:16, fontWeight:700 }}>{m.v}{m.u && <span style={{ fontSize:10, color:"#64748b", marginLeft:2 }}>{m.u}</span>}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Roadmap */}
-            <div style={{ background:"linear-gradient(135deg,rgba(34,211,238,0.05),rgba(139,92,246,0.05))", border:"1px solid rgba(34,211,238,0.15)", borderRadius:8, padding:20 }}>
-              <div style={{ fontSize:13, fontWeight:600, color:"#22d3ee", marginBottom:12 }}>次のフェーズ予定</div>
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:12 }}>
-                {[
-                  {p:"Phase 2",t:"定量モデル",d:"ボリンジャーバンド・RSI・目標株価レンジ"},
-                  {p:"Phase 3",t:"マクロ環境",d:"金利・為替・CPI連動スコアリング"},
-                  {p:"Phase 4",t:"AI分析",d:"レポートPDF解析・センチメント抽出"},
-                  {p:"Phase 5",t:"統合予測",d:"3レイヤー統合・売買シグナル"},
-                ].map(x => (
-                  <div key={x.p} style={{ padding:"10px 12px", background:"rgba(255,255,255,0.02)", borderRadius:6, border:"1px solid rgba(255,255,255,0.04)" }}>
-                    <div className="mono" style={{ fontSize:10, color:"#64748b" }}>{x.p}</div>
-                    <div style={{ fontSize:13, fontWeight:600, color:"#e2e8f0" }}>{x.t}</div>
-                    <div style={{ fontSize:11, color:"#64748b", marginTop:2 }}>{x.d}</div>
                   </div>
                 ))}
               </div>
