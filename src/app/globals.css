@@ -1,39 +1,50 @@
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --bg-primary: #0a0f1e;
-  --bg-secondary: #0f172a;
-  --bg-card: rgba(15, 23, 42, 0.4);
-  --border: rgba(255, 255, 255, 0.06);
-  --accent: #22d3ee;
-  --green: #34d399;
-  --red: #f87171;
-  --yellow: #fbbf24;
-  --purple: #a78bfa;
+  --bg: #F5F4F1;
+  --bg-card: #FFFFFF;
+  --bg-card-alt: #FAFAF8;
+  --border: #E8E6E1;
+  --border-light: #F0EEE9;
+  --text-primary: #1A1A1A;
+  --text-secondary: #4A4A4A;
+  --text-muted: #8A8A8A;
+  --text-dim: #B0B0B0;
+  --accent: #1E3A5F;
+  --accent-light: #2D5A8E;
+  --green: #059669;
+  --green-bg: #ECFDF5;
+  --red: #E11D48;
+  --red-bg: #FFF1F2;
+  --amber: #D97706;
+  --amber-bg: #FFFBEB;
+  --purple: #7C3AED;
+  --purple-bg: #F5F3FF;
 }
 
 * { box-sizing: border-box; }
 
 body {
-  background: var(--bg-primary);
-  color: #e2e8f0;
-  font-family: "Noto Sans JP", "JetBrains Mono", sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: "Noto Sans JP", "DM Sans", sans-serif;
   margin: 0;
   -webkit-font-smoothing: antialiased;
 }
 
-.mono { font-family: "JetBrains Mono", monospace; }
+.mono { font-family: "DM Mono", monospace; }
+.sans { font-family: "DM Sans", "Noto Sans JP", sans-serif; }
 
-::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: #D4D4D4; border-radius: 3px; }
 
-@keyframes pulse-glow {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 1; }
-}
-.loading-pulse { animation: pulse-glow 1.5s ease-in-out infinite; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeIn 0.4s ease-out; }
+
+@keyframes pulse-dot { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+.pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
