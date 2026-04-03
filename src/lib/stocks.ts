@@ -433,11 +433,10 @@ export async function fetchFinancials(code: string): Promise<FinancialPeriod[]> 
     // Try earnings.financialsChart.yearly first
     const yearly = summary?.earnings?.financialsChart?.yearly;
     if (yearly && Array.isArray(yearly) && yearly.length > 0) {
-      const results: FinancialPeriod[] = yearly
-        .slice(-3)
+      const allResults: FinancialPeriod[] = yearly
         .map((y: any) => ({
           date: `${y.date}/3`,
-          fiscalYear: `${y.date}年`,
+          fiscalYear: `${y.date}年3月期`,
           revenue: y.revenue?.raw ?? y.revenue ?? null,
           operatingIncome: null,
           netIncome: y.earnings?.raw ?? y.earnings ?? null,
@@ -445,12 +444,26 @@ export async function fetchFinancials(code: string): Promise<FinancialPeriod[]> 
           eps: null,
         }));
 
+      // Filter out anomalous entries: if revenue jumps >300% from one year to next, remove the smaller one
+      const filtered: FinancialPeriod[] = [];
+      for (let i = 0; i < allResults.length; i++) {
+        const curr = allResults[i];
+        const next = i < allResults.length - 1 ? allResults[i + 1] : null;
+        if (curr.revenue && next?.revenue) {
+          const ratio = next.revenue / curr.revenue;
+          if (ratio > 4) continue; // skip anomalous entry
+        }
+        filtered.push(curr);
+      }
+
+      const results = filtered.slice(-3);
+
       // Enrich with incomeStatementHistory if available
       const stmts = summary?.incomeStatementHistory?.incomeStatementHistory;
       if (stmts && Array.isArray(stmts)) {
         for (const stmt of stmts) {
           const yr = new Date(stmt.endDate).getFullYear();
-          const match = results.find((r) => r.fiscalYear === `${yr}年`);
+          const match = results.find((r) => r.fiscalYear === `${yr}年3月期`);
           if (match) {
             match.operatingIncome = stmt.operatingIncome?.raw ?? stmt.operatingIncome ?? match.operatingIncome;
             match.netIncome = stmt.netIncome?.raw ?? stmt.netIncome ?? match.netIncome;
@@ -476,7 +489,7 @@ export async function fetchFinancials(code: string): Promise<FinancialPeriod[]> 
           const epsVal = s.dilutedEPS?.raw ?? s.dilutedEPS ?? null;
           return {
             date: `${d.getFullYear()}/${d.getMonth() + 1}`,
-            fiscalYear: `${d.getFullYear()}年`,
+            fiscalYear: `${d.getFullYear()}年3月期`,
             revenue: rev, operatingIncome: op, netIncome: net,
             operatingMargin: rev && op ? Math.round((op / rev) * 1000) / 10 : null,
             eps: epsVal,
@@ -506,7 +519,7 @@ export async function fetchFinancials(code: string): Promise<FinancialPeriod[]> 
         const d = new Date(r.date);
         return {
           date: `${d.getFullYear()}/${d.getMonth() + 1}`,
-          fiscalYear: `${d.getFullYear()}年`,
+          fiscalYear: `${d.getFullYear()}年3月期`,
           revenue: rev, operatingIncome: op, netIncome: net,
           operatingMargin: rev && op ? Math.round((op / rev) * 1000) / 10 : null,
           eps: r.annualBasicEPS ?? null,
