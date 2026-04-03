@@ -103,7 +103,7 @@ function signalBg(s:string){if(s.includes("追い風"))return"rgba(52,211,153,0.
 export default function Dashboard() {
   const mobile = useIsMobile();
   const [quotes,setQuotes] = useState<StockQuote[]>([]);
-  const [sel,setSel] = useState("6501");
+  const [sel,setSel] = useState("6098");
   const [chart,setChart] = useState<ChartPoint[]>([]);
   const [range,setRange] = useState("3M");
   const [loading,setLoading] = useState(true);

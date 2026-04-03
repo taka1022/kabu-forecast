@@ -3,9 +3,9 @@ import YahooFinance from "yahoo-finance2";
 const yf = new YahooFinance();
 
 export const WATCHED_STOCKS = [
-  { code: "6501", name: "日立製作所", nameEn: "Hitachi", sector: "電気機器" },
-  { code: "6758", name: "ソニーグループ", nameEn: "Sony Group", sector: "電気機器" },
   { code: "6098", name: "リクルートHD", nameEn: "Recruit Holdings", sector: "サービス" },
+  { code: "6758", name: "ソニーグループ", nameEn: "Sony Group", sector: "電気機器" },
+  { code: "6501", name: "日立製作所", nameEn: "Hitachi", sector: "電気機器" },
   { code: "5401", name: "日本製鉄", nameEn: "Nippon Steel", sector: "鉄鋼" },
   { code: "8306", name: "三菱UFJ FG", nameEn: "MUFG", sector: "銀行" },
 ];
