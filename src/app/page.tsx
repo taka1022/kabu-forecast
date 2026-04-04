@@ -83,6 +83,80 @@ function scoreColor(s:number){if(s>=30)return"var(--green)";if(s>=10)return"#34D
 function signalBg(s:string){if(s.includes("追い風"))return"var(--green-bg)";if(s.includes("向かい風"))return"var(--red-bg)";return"var(--bg-card-alt)";}
 function signalBorder(s:string){if(s.includes("追い風"))return"var(--green)";if(s.includes("向かい風"))return"var(--red)";return"var(--border)";}
 
+// --- Phase 5: Integrated Forecast ---
+interface IntegratedForecast {
+  totalScore: number; // -100 to +100
+  signal: "買い" | "やや買い" | "中立" | "やや売り" | "売り";
+  confidence: "高" | "中" | "低";
+  layers: { name: string; score: number; weight: number; detail: string; color: string }[];
+}
+
+function computeIntegratedForecast(
+  indicators: Indicators | null,
+  macroScore: StockMacroScore | undefined,
+  aiResult: any,
+  stk: StockQuote | undefined
+): IntegratedForecast | null {
+  if (!indicators || !stk) return null;
+
+  const layers: IntegratedForecast["layers"] = [];
+  let validLayers = 0;
+
+  // Layer 1: Technical (RSI + MACD) — weight 35%
+  let techScore = 0;
+  let techDetail = "";
+  if (indicators.rsi !== null) {
+    // RSI: 30以下 = bullish(+), 70以上 = bearish(-), 50 = neutral
+    const rsiScore = indicators.rsi <= 30 ? 80 : indicators.rsi <= 40 ? 40 : indicators.rsi >= 70 ? -80 : indicators.rsi >= 60 ? -40 : 0;
+    // MACD trend
+    const macdScore = indicators.macdTrend === "上昇トレンド" ? 50 : indicators.macdTrend === "下降トレンド" ? -50 : 0;
+    techScore = Math.round((rsiScore * 0.5 + macdScore * 0.5));
+    techDetail = `RSI ${indicators.rsi.toFixed(0)}(${indicators.rsiSignal}) / MACD ${indicators.macdTrend}`;
+    layers.push({ name: "テクニカル", score: techScore, weight: 35, detail: techDetail, color: "var(--accent)" });
+    validLayers++;
+  }
+
+  // Layer 2: Macro — weight 35%
+  if (macroScore) {
+    layers.push({ name: "マクロ環境", score: macroScore.normalizedScore, weight: 35, detail: macroScore.signal, color: "var(--green)" });
+    validLayers++;
+  }
+
+  // Layer 3: AI Analysis — weight 30% (only if available)
+  if (aiResult) {
+    let aiScore = 0;
+    if (aiResult.sentiment) {
+      const sm: Record<string, number> = { "強気": 80, "やや強気": 40, "中立": 0, "やや弱気": -40, "弱気": -80 };
+      aiScore = sm[aiResult.sentiment] ?? 0;
+    } else if (aiResult.upside) {
+      const upsideNum = parseFloat(String(aiResult.upside).replace(/[^-\d.]/g, ""));
+      if (!isNaN(upsideNum)) aiScore = Math.max(-100, Math.min(100, upsideNum * 2));
+    }
+    if (aiResult.rating) {
+      const rm: Record<string, number> = { "強気": 80, "やや強気": 40, "中立": 0, "やや弱気": -40, "弱気": -80 };
+      aiScore = rm[aiResult.rating] ?? aiScore;
+    }
+    layers.push({ name: "AI分析", score: aiScore, weight: 30, detail: aiResult.sentiment || aiResult.summary?.slice(0, 30) || "分析済", color: "var(--purple)" });
+    validLayers++;
+  }
+
+  if (validLayers === 0) return null;
+
+  // Rebalance weights if some layers are missing
+  const totalWeight = layers.reduce((s, l) => s + l.weight, 0);
+  const totalScore = Math.round(layers.reduce((s, l) => s + (l.score * l.weight / totalWeight), 0));
+
+  let signal: IntegratedForecast["signal"] = "中立";
+  if (totalScore >= 40) signal = "買い";
+  else if (totalScore >= 15) signal = "やや買い";
+  else if (totalScore <= -40) signal = "売り";
+  else if (totalScore <= -15) signal = "やや売り";
+
+  const confidence: IntegratedForecast["confidence"] = validLayers >= 3 ? "高" : validLayers >= 2 ? "中" : "低";
+
+  return { totalScore, signal, confidence, layers };
+}
+
 // === Main ===
 export default function Dashboard(){
   const mobile=useIsMobile();
@@ -123,6 +197,7 @@ export default function Dashboard(){
   const pMax=allV.length?Math.max(...allV)*1.005:100;
   const xInterval=Math.max(1,Math.floor(chart.length/(mobile?5:7)));
   const currentMS=macroScores.find(s=>s.code===sel);
+  const forecast = computeIntegratedForecast(indicators, currentMS, aiResult, stk);
 
   if(loading)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:"var(--bg)"}}>
     <div className="pulse-dot" style={{width:10,height:10,borderRadius:"50%",background:"var(--accent)"}}/>
@@ -225,6 +300,56 @@ export default function Dashboard(){
                 {["1M","3M","6M","1Y"].map(r=>(<button key={r} onClick={()=>setRange(r)} className="mono" style={{padding:mobile?"5px 11px":"6px 14px",fontSize:mobile?11:12,fontWeight:600,border:"none",borderRadius:6,background:range===r?"#fff":"transparent",color:range===r?"var(--accent)":"var(--text-muted)",cursor:"pointer",boxShadow:range===r?"0 1px 3px rgba(0,0,0,0.08)":"none",transition:"all 0.15s"}}>{r}</button>))}
               </div>
             </div>
+
+            {/* === Phase 5: Integrated Forecast === */}
+            {forecast&&(
+              <Card style={{marginBottom:mobile?14:18,overflow:"hidden",border:forecast.signal==="買い"||forecast.signal==="やや買い"?"1px solid var(--green)":forecast.signal==="売り"||forecast.signal==="やや売り"?"1px solid var(--red)":"1px solid var(--border-light)"}}>
+                <div style={{display:mobile?"block":"flex"}}>
+                  {/* Score Display */}
+                  <div style={{padding:mobile?"16px":"20px 24px",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minWidth:mobile?"auto":160,
+                    background:forecast.signal.includes("買")?"linear-gradient(135deg,rgba(5,150,105,0.06),rgba(5,150,105,0.02))":forecast.signal.includes("売")?"linear-gradient(135deg,rgba(225,29,72,0.06),rgba(225,29,72,0.02))":"var(--bg-card-alt)",
+                    borderRight:mobile?"none":"1px solid var(--border-light)",borderBottom:mobile?"1px solid var(--border-light)":"none"}}>
+                    <div style={{fontSize:10,color:"var(--text-muted)",fontWeight:500,marginBottom:4,letterSpacing:1}}>統合スコア</div>
+                    <div className="mono" style={{fontSize:mobile?36:44,fontWeight:700,color:forecast.totalScore>=15?"var(--green)":forecast.totalScore<=-15?"var(--red)":"var(--text-primary)",lineHeight:1}}>{forecast.totalScore>0?"+":""}{forecast.totalScore}</div>
+                    <div style={{marginTop:6,padding:"3px 12px",borderRadius:6,fontSize:13,fontWeight:700,
+                      background:forecast.signal.includes("買")?"var(--green)":forecast.signal.includes("売")?"var(--red)":"var(--text-muted)",
+                      color:"#fff"}}>{forecast.signal}</div>
+                    <div style={{marginTop:4,fontSize:9,color:"var(--text-dim)"}}>信頼度: {forecast.confidence}</div>
+                  </div>
+
+                  {/* Layer Breakdown */}
+                  <div style={{flex:1,padding:mobile?"12px 14px":"16px 20px"}}>
+                    <div style={{fontSize:11,fontWeight:600,color:"var(--text-muted)",marginBottom:mobile?8:10,letterSpacing:0.5}}>レイヤー別スコア</div>
+                    {forecast.layers.map(l=>{
+                      const pos = Math.max(0, Math.min(100, (l.score + 100) / 2));
+                      return(
+                        <div key={l.name} style={{marginBottom:mobile?10:12}}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:3}}>
+                            <div style={{display:"flex",alignItems:"center",gap:6}}>
+                              <div style={{width:3,height:14,borderRadius:2,background:l.color}} />
+                              <span style={{fontSize:mobile?11:12,fontWeight:600}}>{l.name}</span>
+                              <span className="mono" style={{fontSize:10,color:"var(--text-dim)"}}>(×{l.weight}%)</span>
+                            </div>
+                            <span className="mono" style={{fontSize:mobile?13:14,fontWeight:700,color:l.score>=15?"var(--green)":l.score<=-15?"var(--red)":"var(--text-primary)"}}>{l.score>0?"+":""}{l.score}</span>
+                          </div>
+                          <div style={{position:"relative",height:4,background:"#EEECE7",borderRadius:2,overflow:"hidden"}}>
+                            <div style={{position:"absolute",left:"50%",top:0,bottom:0,width:1,background:"var(--border)"}} />
+                            <div style={{position:"absolute",left:`${Math.min(pos, 50)}%`,width:`${Math.abs(pos - 50)}%`,top:0,bottom:0,
+                              background:l.score>=0?"var(--green)":"var(--red)",borderRadius:2,opacity:0.6}} />
+                          </div>
+                          <div style={{fontSize:mobile?9:10,color:"var(--text-dim)",marginTop:2}}>{l.detail}</div>
+                        </div>
+                      );
+                    })}
+                    {forecast.layers.length<3&&(
+                      <div style={{fontSize:10,color:"var(--amber)",marginTop:4,padding:"4px 8px",background:"var(--amber-bg)",borderRadius:4,display:"inline-block"}}>
+                        AI分析を追加すると信頼度が上がります
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            )}
 
             {/* Indicator cards */}
             {indicators&&(
