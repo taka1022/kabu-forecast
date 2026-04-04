@@ -301,88 +301,6 @@ export default function Dashboard(){
               </div>
             </div>
 
-            {/* === Phase 5: Integrated Forecast === */}
-            {forecast&&(
-              <Card style={{marginBottom:mobile?14:18,overflow:"hidden",border:forecast.signal==="買い"||forecast.signal==="やや買い"?"1px solid var(--green)":forecast.signal==="売り"||forecast.signal==="やや売り"?"1px solid var(--red)":"1px solid var(--border-light)"}}>
-                <div style={{display:mobile?"block":"flex"}}>
-                  {/* Score Display */}
-                  <div style={{padding:mobile?"16px":"20px 24px",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minWidth:mobile?"auto":160,
-                    background:forecast.signal.includes("買")?"linear-gradient(135deg,rgba(5,150,105,0.06),rgba(5,150,105,0.02))":forecast.signal.includes("売")?"linear-gradient(135deg,rgba(225,29,72,0.06),rgba(225,29,72,0.02))":"var(--bg-card-alt)",
-                    borderRight:mobile?"none":"1px solid var(--border-light)",borderBottom:mobile?"1px solid var(--border-light)":"none"}}>
-                    <div style={{fontSize:10,color:"var(--text-muted)",fontWeight:500,marginBottom:4,letterSpacing:1}}>統合スコア</div>
-                    <div className="mono" style={{fontSize:mobile?36:44,fontWeight:700,color:forecast.totalScore>=15?"var(--green)":forecast.totalScore<=-15?"var(--red)":"var(--text-primary)",lineHeight:1}}>{forecast.totalScore>0?"+":""}{forecast.totalScore}</div>
-                    <div style={{marginTop:6,padding:"3px 12px",borderRadius:6,fontSize:13,fontWeight:700,
-                      background:forecast.signal.includes("買")?"var(--green)":forecast.signal.includes("売")?"var(--red)":"var(--text-muted)",
-                      color:"#fff"}}>{forecast.signal}</div>
-                    <div style={{marginTop:4,fontSize:9,color:"var(--text-dim)"}}>信頼度: {forecast.confidence}</div>
-                  </div>
-
-                  {/* Layer Breakdown */}
-                  <div style={{flex:1,padding:mobile?"12px 14px":"16px 20px"}}>
-                    <div style={{fontSize:11,fontWeight:600,color:"var(--text-muted)",marginBottom:mobile?8:10,letterSpacing:0.5}}>レイヤー別スコア</div>
-                    {forecast.layers.map(l=>{
-                      const pos = Math.max(0, Math.min(100, (l.score + 100) / 2));
-                      return(
-                        <div key={l.name} style={{marginBottom:mobile?10:12}}>
-                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:3}}>
-                            <div style={{display:"flex",alignItems:"center",gap:6}}>
-                              <div style={{width:3,height:14,borderRadius:2,background:l.color}} />
-                              <span style={{fontSize:mobile?11:12,fontWeight:600}}>{l.name}</span>
-                              <span className="mono" style={{fontSize:10,color:"var(--text-dim)"}}>(×{l.weight}%)</span>
-                            </div>
-                            <span className="mono" style={{fontSize:mobile?13:14,fontWeight:700,color:l.score>=15?"var(--green)":l.score<=-15?"var(--red)":"var(--text-primary)"}}>{l.score>0?"+":""}{l.score}</span>
-                          </div>
-                          <div style={{position:"relative",height:4,background:"#EEECE7",borderRadius:2,overflow:"hidden"}}>
-                            <div style={{position:"absolute",left:"50%",top:0,bottom:0,width:1,background:"var(--border)"}} />
-                            <div style={{position:"absolute",left:`${Math.min(pos, 50)}%`,width:`${Math.abs(pos - 50)}%`,top:0,bottom:0,
-                              background:l.score>=0?"var(--green)":"var(--red)",borderRadius:2,opacity:0.6}} />
-                          </div>
-                          <div style={{fontSize:mobile?9:10,color:"var(--text-dim)",marginTop:2}}>{l.detail}</div>
-                        </div>
-                      );
-                    })}
-                    {forecast.layers.length<3&&(
-                      <div style={{fontSize:10,color:"var(--amber)",marginTop:4,padding:"4px 8px",background:"var(--amber-bg)",borderRadius:4,display:"inline-block"}}>
-                        AI分析を追加すると信頼度が上がります
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            )}
-
-            {/* Indicator cards */}
-            {indicators&&(
-              <div style={{display:"grid",gridTemplateColumns:mobile?"repeat(2,1fr)":"repeat(4,1fr)",gap:mobile?8:12,marginBottom:mobile?14:18}}>
-                <Card style={{padding:"12px 14px",borderLeft:"3px solid var(--accent)"}}>
-                  <div style={{fontSize:10,color:"var(--text-muted)",marginBottom:3,fontWeight:500}}>RSI (14)</div>
-                  <div className="mono" style={{fontSize:18,fontWeight:700,color:indicators.rsiSignal==="買われすぎ"?"var(--red)":indicators.rsiSignal==="売られすぎ"?"var(--green)":"var(--text-primary)"}}>{indicators.rsi?.toFixed(1)??"—"}</div>
-                  <span style={{fontSize:10,padding:"2px 8px",borderRadius:4,background:indicators.rsiSignal==="買われすぎ"?"var(--red-bg)":indicators.rsiSignal==="売られすぎ"?"var(--green-bg)":"var(--bg-card-alt)",color:indicators.rsiSignal==="買われすぎ"?"var(--red)":indicators.rsiSignal==="売られすぎ"?"var(--green)":"var(--text-muted)",fontWeight:500}}>{indicators.rsiSignal}</span>
-                </Card>
-                <Card style={{padding:"12px 14px",borderLeft:"3px solid var(--purple)"}}>
-                  <div style={{fontSize:10,color:"var(--text-muted)",marginBottom:3,fontWeight:500}}>MACD</div>
-                  <div className="mono" style={{fontSize:18,fontWeight:700,color:"var(--accent)"}}>{indicators.macd?.toFixed(1)??"—"}</div>
-                  <span style={{fontSize:10,padding:"2px 8px",borderRadius:4,background:indicators.macdTrend==="上昇トレンド"?"var(--green-bg)":indicators.macdTrend==="下降トレンド"?"var(--red-bg)":"var(--bg-card-alt)",color:indicators.macdTrend==="上昇トレンド"?"var(--green)":indicators.macdTrend==="下降トレンド"?"var(--red)":"var(--text-muted)",fontWeight:500}}>{indicators.macdTrend}</span>
-                </Card>
-                <Card style={{padding:"12px 14px",borderLeft:"3px solid var(--amber)"}}>
-                  <div style={{fontSize:10,color:"var(--text-muted)",marginBottom:3,fontWeight:500}}>PER</div>
-                  <div className="mono" style={{fontSize:18,fontWeight:700}}>{stk.per?.toFixed(1)??"—"}<span style={{fontSize:11,color:"var(--text-muted)",marginLeft:2}}>倍</span></div>
-                </Card>
-                {currentMS?(
-                  <Card style={{padding:"12px 14px",borderLeft:`3px solid ${signalBorder(currentMS.signal)}`,background:signalBg(currentMS.signal)}}>
-                    <div style={{fontSize:10,color:"var(--text-muted)",marginBottom:3,fontWeight:500}}>マクロ環境</div>
-                    <div className="mono" style={{fontSize:18,fontWeight:700,color:scoreColor(currentMS.normalizedScore)}}>{currentMS.normalizedScore>0?"+":""}{currentMS.normalizedScore}</div>
-                    <span style={{fontSize:10,fontWeight:600,color:scoreColor(currentMS.normalizedScore)}}>{currentMS.signal}</span>
-                  </Card>
-                ):(
-                  <Card style={{padding:"12px 14px",borderLeft:"3px solid var(--green)"}}>
-                    <div style={{fontSize:10,color:"var(--text-muted)",marginBottom:3,fontWeight:500}}>配当利回</div>
-                    <div className="mono" style={{fontSize:18,fontWeight:700}}>{stk.dividendYield?.toFixed(2)??"—"}<span style={{fontSize:11,color:"var(--text-muted)",marginLeft:2}}>%</span></div>
-                  </Card>
-                )}
-              </div>
-            )}
-
             {/* Chart */}
             <Card style={{padding:mobile?"14px 6px 8px 0":"20px 16px 10px 0",marginBottom:14}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:mobile?"0 10px":"0 16px",marginBottom:8}}>
@@ -407,6 +325,7 @@ export default function Dashboard(){
                 </AreaChart>
               </ResponsiveContainer>
             </Card>
+
 
             {/* RSI / MACD sub chart */}
             <Card style={{padding:mobile?"10px 6px 10px 0":"14px 16px 12px 0",marginBottom:14}}>
@@ -458,6 +377,90 @@ export default function Dashboard(){
                 </>
               )}
             </Card>
+
+
+            {/* Indicator cards */}
+            {indicators&&(
+              <div style={{display:"grid",gridTemplateColumns:mobile?"repeat(2,1fr)":"repeat(4,1fr)",gap:mobile?8:12,marginBottom:mobile?14:18}}>
+                <Card style={{padding:"12px 14px",borderLeft:"3px solid var(--accent)"}}>
+                  <div style={{fontSize:10,color:"var(--text-muted)",marginBottom:3,fontWeight:500}}>RSI (14)</div>
+                  <div className="mono" style={{fontSize:18,fontWeight:700,color:indicators.rsiSignal==="買われすぎ"?"var(--red)":indicators.rsiSignal==="売られすぎ"?"var(--green)":"var(--text-primary)"}}>{indicators.rsi?.toFixed(1)??"—"}</div>
+                  <span style={{fontSize:10,padding:"2px 8px",borderRadius:4,background:indicators.rsiSignal==="買われすぎ"?"var(--red-bg)":indicators.rsiSignal==="売られすぎ"?"var(--green-bg)":"var(--bg-card-alt)",color:indicators.rsiSignal==="買われすぎ"?"var(--red)":indicators.rsiSignal==="売られすぎ"?"var(--green)":"var(--text-muted)",fontWeight:500}}>{indicators.rsiSignal}</span>
+                </Card>
+                <Card style={{padding:"12px 14px",borderLeft:"3px solid var(--purple)"}}>
+                  <div style={{fontSize:10,color:"var(--text-muted)",marginBottom:3,fontWeight:500}}>MACD</div>
+                  <div className="mono" style={{fontSize:18,fontWeight:700,color:"var(--accent)"}}>{indicators.macd?.toFixed(1)??"—"}</div>
+                  <span style={{fontSize:10,padding:"2px 8px",borderRadius:4,background:indicators.macdTrend==="上昇トレンド"?"var(--green-bg)":indicators.macdTrend==="下降トレンド"?"var(--red-bg)":"var(--bg-card-alt)",color:indicators.macdTrend==="上昇トレンド"?"var(--green)":indicators.macdTrend==="下降トレンド"?"var(--red)":"var(--text-muted)",fontWeight:500}}>{indicators.macdTrend}</span>
+                </Card>
+                <Card style={{padding:"12px 14px",borderLeft:"3px solid var(--amber)"}}>
+                  <div style={{fontSize:10,color:"var(--text-muted)",marginBottom:3,fontWeight:500}}>PER</div>
+                  <div className="mono" style={{fontSize:18,fontWeight:700}}>{stk.per?.toFixed(1)??"—"}<span style={{fontSize:11,color:"var(--text-muted)",marginLeft:2}}>倍</span></div>
+                </Card>
+                {currentMS?(
+                  <Card style={{padding:"12px 14px",borderLeft:`3px solid ${signalBorder(currentMS.signal)}`,background:signalBg(currentMS.signal)}}>
+                    <div style={{fontSize:10,color:"var(--text-muted)",marginBottom:3,fontWeight:500}}>マクロ環境</div>
+                    <div className="mono" style={{fontSize:18,fontWeight:700,color:scoreColor(currentMS.normalizedScore)}}>{currentMS.normalizedScore>0?"+":""}{currentMS.normalizedScore}</div>
+                    <span style={{fontSize:10,fontWeight:600,color:scoreColor(currentMS.normalizedScore)}}>{currentMS.signal}</span>
+                  </Card>
+                ):(
+                  <Card style={{padding:"12px 14px",borderLeft:"3px solid var(--green)"}}>
+                    <div style={{fontSize:10,color:"var(--text-muted)",marginBottom:3,fontWeight:500}}>配当利回</div>
+                    <div className="mono" style={{fontSize:18,fontWeight:700}}>{stk.dividendYield?.toFixed(2)??"—"}<span style={{fontSize:11,color:"var(--text-muted)",marginLeft:2}}>%</span></div>
+                  </Card>
+                )}
+              </div>
+            )}
+
+
+            {/* === Phase 5: Integrated Forecast === */}
+            {forecast&&(
+              <Card style={{marginBottom:mobile?14:18,overflow:"hidden",border:forecast.signal==="買い"||forecast.signal==="やや買い"?"1px solid var(--green)":forecast.signal==="売り"||forecast.signal==="やや売り"?"1px solid var(--red)":"1px solid var(--border-light)"}}>
+                <div style={{display:mobile?"block":"flex"}}>
+                  {/* Score Display */}
+                  <div style={{padding:mobile?"16px":"20px 24px",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minWidth:mobile?"auto":160,
+                    background:forecast.signal.includes("買")?"linear-gradient(135deg,rgba(5,150,105,0.06),rgba(5,150,105,0.02))":forecast.signal.includes("売")?"linear-gradient(135deg,rgba(225,29,72,0.06),rgba(225,29,72,0.02))":"var(--bg-card-alt)",
+                    borderRight:mobile?"none":"1px solid var(--border-light)",borderBottom:mobile?"1px solid var(--border-light)":"none"}}>
+                    <div style={{fontSize:10,color:"var(--text-muted)",fontWeight:500,marginBottom:4,letterSpacing:1}}>統合スコア</div>
+                    <div className="mono" style={{fontSize:mobile?36:44,fontWeight:700,color:forecast.totalScore>=15?"var(--green)":forecast.totalScore<=-15?"var(--red)":"var(--text-primary)",lineHeight:1}}>{forecast.totalScore>0?"+":""}{forecast.totalScore}</div>
+                    <div style={{marginTop:6,padding:"3px 12px",borderRadius:6,fontSize:13,fontWeight:700,
+                      background:forecast.signal.includes("買")?"var(--green)":forecast.signal.includes("売")?"var(--red)":"var(--text-muted)",
+                      color:"#fff"}}>{forecast.signal}</div>
+                    <div style={{marginTop:4,fontSize:9,color:"var(--text-dim)"}}>信頼度: {forecast.confidence}</div>
+                  </div>
+
+                  {/* Layer Breakdown */}
+                  <div style={{flex:1,padding:mobile?"12px 14px":"16px 20px"}}>
+                    <div style={{fontSize:11,fontWeight:600,color:"var(--text-muted)",marginBottom:mobile?8:10,letterSpacing:0.5}}>レイヤー別スコア</div>
+                    {forecast.layers.map(l=>{
+                      const pos = Math.max(0, Math.min(100, (l.score + 100) / 2));
+                      return(
+                        <div key={l.name} style={{marginBottom:mobile?10:12}}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:3}}>
+                            <div style={{display:"flex",alignItems:"center",gap:6}}>
+                              <div style={{width:3,height:14,borderRadius:2,background:l.color}} />
+                              <span style={{fontSize:mobile?11:12,fontWeight:600}}>{l.name}</span>
+                              <span className="mono" style={{fontSize:10,color:"var(--text-dim)"}}>(×{l.weight}%)</span>
+                            </div>
+                            <span className="mono" style={{fontSize:mobile?13:14,fontWeight:700,color:l.score>=15?"var(--green)":l.score<=-15?"var(--red)":"var(--text-primary)"}}>{l.score>0?"+":""}{l.score}</span>
+                          </div>
+                          <div style={{position:"relative",height:4,background:"#EEECE7",borderRadius:2,overflow:"hidden"}}>
+                            <div style={{position:"absolute",left:"50%",top:0,bottom:0,width:1,background:"var(--border)"}} />
+                            <div style={{position:"absolute",left:`${Math.min(pos, 50)}%`,width:`${Math.abs(pos - 50)}%`,top:0,bottom:0,
+                              background:l.score>=0?"var(--green)":"var(--red)",borderRadius:2,opacity:0.6}} />
+                          </div>
+                          <div style={{fontSize:mobile?9:10,color:"var(--text-dim)",marginTop:2}}>{l.detail}</div>
+                        </div>
+                      );
+                    })}
+                    {forecast.layers.length<3&&(
+                      <div style={{fontSize:10,color:"var(--amber)",marginTop:4,padding:"4px 8px",background:"var(--amber-bg)",borderRadius:4,display:"inline-block"}}>
+                        AI分析を追加すると信頼度が上がります
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            )}
 
             {/* Target Ranges */}
             {targets.length>0&&(<div style={{marginBottom:14}}>
