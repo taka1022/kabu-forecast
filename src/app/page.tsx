@@ -102,6 +102,12 @@ export default function Dashboard(){
   const[macroScores,setMacroScores]=useState<StockMacroScore[]>([]);
   const[sidebarOpen,setSidebarOpen]=useState(false);
   const[financials,setFinancials]=useState<FinancialPeriod[]>([]);
+  // AI Analysis state
+  const[aiTab,setAiTab]=useState<"consensus"|"report">("consensus");
+  const[aiLoading,setAiLoading]=useState(false);
+  const[consensusForm,setConsensusForm]=useState({targetPrice:"",rating:"中立",analystCount:"",comment:""});
+  const[reportText,setReportText]=useState("");
+  const[aiResult,setAiResult]=useState<any>(null);
 
   useEffect(()=>{(async()=>{try{const r=await fetch("/api/stocks");if(!r.ok)throw new Error();const d=await r.json();setQuotes(d.quotes);setUpdated(d.updatedAt);setErr(null);}catch{setErr("データの取得に失敗しました");}finally{setLoading(false);}})();const iv=setInterval(async()=>{try{const r=await fetch("/api/stocks");if(r.ok){const d=await r.json();setQuotes(d.quotes);setUpdated(d.updatedAt);}}catch{}},300000);return()=>clearInterval(iv);},[]);
   useEffect(()=>{(async()=>{try{const r=await fetch("/api/macro");if(!r.ok)return;const d=await r.json();setMacroIndicators(d.indicators||[]);setMacroScores(d.scores||[]);}catch(e){console.error(e);}})();},[]);
@@ -457,6 +463,124 @@ export default function Dashboard(){
                 </div>
               </Card>
             )}
+
+            {/* AI Analysis Section */}
+            <Card style={{marginBottom:14,overflow:"hidden"}}>
+              <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border-light)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span className="sans" style={{fontSize:13,fontWeight:700,color:"var(--accent)"}}>AI分析</span>
+                <div style={{display:"flex",gap:4,background:"var(--bg-card-alt)",borderRadius:6,padding:2}}>
+                  {(["consensus","report"] as const).map(t=>(<button key={t} onClick={()=>{setAiTab(t);setAiResult(null);}} style={{padding:"4px 10px",fontSize:11,borderRadius:4,border:"none",cursor:"pointer",background:aiTab===t?"#fff":"transparent",color:aiTab===t?"var(--accent)":"var(--text-muted)",fontWeight:600,boxShadow:aiTab===t?"0 1px 2px rgba(0,0,0,0.06)":"none"}}>{t==="consensus"?"コンセンサス入力":"レポート分析"}</button>))}
+                </div>
+              </div>
+
+              <div style={{padding:mobile?"12px":"16px"}}>
+                {aiTab==="consensus"?(
+                  <div>
+                    <div style={{display:"grid",gridTemplateColumns:mobile?"1fr":"repeat(2,1fr)",gap:10,marginBottom:12}}>
+                      <div>
+                        <label style={{fontSize:10,color:"var(--text-muted)",display:"block",marginBottom:3,fontWeight:500}}>目標株価</label>
+                        <input type="number" placeholder="例: 5500" value={consensusForm.targetPrice} onChange={e=>setConsensusForm({...consensusForm,targetPrice:e.target.value})}
+                          style={{width:"100%",padding:"8px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13,background:"var(--bg-card-alt)",color:"var(--text-primary)",outline:"none"}} />
+                      </div>
+                      <div>
+                        <label style={{fontSize:10,color:"var(--text-muted)",display:"block",marginBottom:3,fontWeight:500}}>レーティング</label>
+                        <select value={consensusForm.rating} onChange={e=>setConsensusForm({...consensusForm,rating:e.target.value})}
+                          style={{width:"100%",padding:"8px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13,background:"var(--bg-card-alt)",color:"var(--text-primary)",outline:"none"}}>
+                          <option value="強気">強気</option><option value="やや強気">やや強気</option><option value="中立">中立</option><option value="やや弱気">やや弱気</option><option value="弱気">弱気</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{fontSize:10,color:"var(--text-muted)",display:"block",marginBottom:3,fontWeight:500}}>アナリスト数</label>
+                        <input type="number" placeholder="例: 15" value={consensusForm.analystCount} onChange={e=>setConsensusForm({...consensusForm,analystCount:e.target.value})}
+                          style={{width:"100%",padding:"8px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13,background:"var(--bg-card-alt)",color:"var(--text-primary)",outline:"none"}} />
+                      </div>
+                      <div>
+                        <label style={{fontSize:10,color:"var(--text-muted)",display:"block",marginBottom:3,fontWeight:500}}>コメント / メモ</label>
+                        <input type="text" placeholder="株予報Pro等からの情報" value={consensusForm.comment} onChange={e=>setConsensusForm({...consensusForm,comment:e.target.value})}
+                          style={{width:"100%",padding:"8px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13,background:"var(--bg-card-alt)",color:"var(--text-primary)",outline:"none"}} />
+                      </div>
+                    </div>
+                    <button disabled={aiLoading||!consensusForm.targetPrice} onClick={async()=>{
+                      setAiLoading(true);setAiResult(null);
+                      try{const r=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:stk.code,name:stk.name,price:stk.price,action:"analyze_consensus",consensus:consensusForm})});
+                        if(r.ok){const d=await r.json();setAiResult(d.analysis);}else{setAiResult({summary:"分析に失敗しました。もう一度お試しください。"});}}
+                      catch{setAiResult({summary:"エラーが発生しました"});}finally{setAiLoading(false);}
+                    }} style={{padding:"8px 20px",borderRadius:6,border:"none",cursor:aiLoading||!consensusForm.targetPrice?"not-allowed":"pointer",background:aiLoading||!consensusForm.targetPrice?"var(--border)":"var(--accent)",color:"#fff",fontSize:12,fontWeight:600,transition:"all 0.15s"}}>
+                      {aiLoading?"分析中...":"AIで分析する"}
+                    </button>
+                  </div>
+                ):(
+                  <div>
+                    <div style={{marginBottom:10}}>
+                      <label style={{fontSize:10,color:"var(--text-muted)",display:"block",marginBottom:3,fontWeight:500}}>アナリストレポートをペースト</label>
+                      <textarea placeholder="レポートのテキストをここに貼り付けてください..." value={reportText} onChange={e=>setReportText(e.target.value)}
+                        style={{width:"100%",minHeight:mobile?100:120,padding:"10px",borderRadius:6,border:"1px solid var(--border)",fontSize:12,background:"var(--bg-card-alt)",color:"var(--text-primary)",outline:"none",resize:"vertical",lineHeight:1.6}} />
+                    </div>
+                    <button disabled={aiLoading||!reportText.trim()} onClick={async()=>{
+                      setAiLoading(true);setAiResult(null);
+                      try{const r=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:stk.code,name:stk.name,price:stk.price,action:"analyze_report",reportText})});
+                        if(r.ok){const d=await r.json();setAiResult(d.analysis);}else{setAiResult({summary:"分析に失敗しました"});}}
+                      catch{setAiResult({summary:"エラーが発生しました"});}finally{setAiLoading(false);}
+                    }} style={{padding:"8px 20px",borderRadius:6,border:"none",cursor:aiLoading||!reportText.trim()?"not-allowed":"pointer",background:aiLoading||!reportText.trim()?"var(--border)":"var(--accent)",color:"#fff",fontSize:12,fontWeight:600}}>
+                      {aiLoading?"分析中...":"AIで分析する"}
+                    </button>
+                  </div>
+                )}
+
+                {/* AI Result */}
+                {aiResult&&(
+                  <div style={{marginTop:14,padding:mobile?"12px":"14px",background:"var(--bg-card-alt)",borderRadius:8,border:"1px solid var(--border-light)"}}>
+                    {aiResult.sentiment&&(
+                      <div style={{marginBottom:8}}>
+                        <span style={{fontSize:10,color:"var(--text-muted)",fontWeight:500}}>センチメント: </span>
+                        <span style={{fontSize:12,fontWeight:700,padding:"2px 8px",borderRadius:4,
+                          background:aiResult.sentiment.includes("強気")?"var(--green-bg)":aiResult.sentiment.includes("弱気")?"var(--red-bg)":"var(--bg-card-alt)",
+                          color:aiResult.sentiment.includes("強気")?"var(--green)":aiResult.sentiment.includes("弱気")?"var(--red)":"var(--text-primary)"}}>{aiResult.sentiment}</span>
+                      </div>
+                    )}
+                    {aiResult.upside&&(
+                      <div style={{marginBottom:8,fontSize:12}}>
+                        <span style={{color:"var(--text-muted)",fontWeight:500}}>上昇余地: </span>
+                        <span className="mono" style={{fontWeight:700,color:"var(--accent)"}}>{aiResult.upside}</span>
+                      </div>
+                    )}
+                    {aiResult.targetPrice&&(
+                      <div style={{marginBottom:8,fontSize:12}}>
+                        <span style={{color:"var(--text-muted)",fontWeight:500}}>目標株価: </span>
+                        <span className="mono" style={{fontWeight:700}}>¥{Number(aiResult.targetPrice).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {aiResult.summary&&(
+                      <div style={{marginBottom:10,fontSize:mobile?11:12,color:"var(--text-secondary)",lineHeight:1.7}}>{aiResult.summary}</div>
+                    )}
+                    {aiResult.keyPoints&&aiResult.keyPoints.length>0&&(
+                      <div style={{marginBottom:8}}>
+                        <div style={{fontSize:10,color:"var(--text-muted)",fontWeight:600,marginBottom:4}}>要点</div>
+                        {aiResult.keyPoints.map((p:string,i:number)=>(<div key={i} style={{fontSize:mobile?10:11,color:"var(--text-secondary)",padding:"3px 0",paddingLeft:12,position:"relative",lineHeight:1.5}}>
+                          <span style={{position:"absolute",left:0,color:"var(--accent)"}}>•</span>{p}
+                        </div>))}
+                      </div>
+                    )}
+                    {aiResult.catalysts&&aiResult.catalysts.length>0&&(
+                      <div style={{marginBottom:8}}>
+                        <div style={{fontSize:10,color:"var(--green)",fontWeight:600,marginBottom:4}}>カタリスト</div>
+                        {aiResult.catalysts.map((c:string,i:number)=>(<div key={i} style={{fontSize:mobile?10:11,color:"var(--text-secondary)",padding:"3px 0",paddingLeft:12,position:"relative"}}>
+                          <span style={{position:"absolute",left:0,color:"var(--green)"}}>↑</span>{c}
+                        </div>))}
+                      </div>
+                    )}
+                    {(aiResult.risk||aiResult.risks)&&(
+                      <div>
+                        <div style={{fontSize:10,color:"var(--red)",fontWeight:600,marginBottom:4}}>リスク</div>
+                        {aiResult.risks?aiResult.risks.map((r:string,i:number)=>(<div key={i} style={{fontSize:mobile?10:11,color:"var(--text-secondary)",padding:"3px 0",paddingLeft:12,position:"relative"}}>
+                          <span style={{position:"absolute",left:0,color:"var(--red)"}}>↓</span>{r}
+                        </div>)):(<div style={{fontSize:mobile?10:11,color:"var(--text-secondary)"}}>{aiResult.risk}</div>)}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </Card>
           </>):<div style={{color:"var(--text-muted)",textAlign:"center",marginTop:80}}>銘柄を選択してください</div>}
         </main>
       </div>
