@@ -58,10 +58,22 @@ export async function fetchStockQuote(code: string): Promise<StockQuote | null> 
     const change = price - prevClose;
     const changePct = prevClose ? (change / prevClose) * 100 : 0;
 
-    const epsVal = quote.epsTrailingTwelveMonths ?? null;
-    const per = epsVal && epsVal > 0 && price > 0
-      ? Math.round((price / epsVal) * 10) / 10
-      : null;
+    // 会社予想EPSからPER算出
+    let per: number | null = null;
+    let eps: number | null = quote.epsTrailingTwelveMonths ?? null;
+    try {
+      const summary: any = await yf.quoteSummary(toTicker(code), { modules: ["defaultKeyStatistics", "financialData"] });
+      const forwardEps = summary?.defaultKeyStatistics?.forwardEps?.raw ?? summary?.defaultKeyStatistics?.forwardEps ?? null;
+      if (forwardEps && forwardEps > 0 && price > 0) {
+        per = Math.round((price / forwardEps) * 10) / 10;
+        eps = forwardEps;
+      }
+    } catch (e) {
+      // フォールバック: 既存EPSで計算
+    }
+    if (per === null && eps && eps > 0 && price > 0) {
+      per = Math.round((price / eps) * 10) / 10;
+    }
 
     return {
       code,
@@ -82,7 +94,7 @@ export async function fetchStockQuote(code: string): Promise<StockQuote | null> 
       dividendYield: quote.dividendYield
         ? Math.round(quote.dividendYield * 100) / 100
         : null,
-      eps: quote.epsTrailingTwelveMonths ?? null,
+      eps,
       fiftyTwoWeekHigh: quote.fiftyTwoWeekHigh ?? null,
       fiftyTwoWeekLow: quote.fiftyTwoWeekLow ?? null,
     };
