@@ -58,6 +58,18 @@ export async function fetchStockQuote(code: string): Promise<StockQuote | null> 
     const change = price - prevClose;
     const changePct = prevClose ? (change / prevClose) * 100 : 0;
 
+    // PERのフォールバック計算
+    let per = quote.trailingPE ?? null;
+    // 異常値チェック: PERが500以上または0以下の場合、自前計算にフォールバック
+    if (per === null || per > 500 || per <= 0) {
+      const epsVal = quote.epsTrailingTwelveMonths ?? null;
+      if (epsVal && epsVal > 0 && price > 0) {
+        per = Math.round((price / epsVal) * 10) / 10;
+      } else {
+        per = null;
+      }
+    }
+
     return {
       code,
       name: meta.name,
@@ -72,7 +84,7 @@ export async function fetchStockQuote(code: string): Promise<StockQuote | null> 
       low: quote.regularMarketDayLow ?? 0,
       volume: quote.regularMarketVolume ?? 0,
       marketCap: quote.marketCap ?? 0,
-      per: quote.trailingPE ?? null,
+      per,
       pbr: quote.priceToBook ?? null,
       dividendYield: quote.dividendYield
         ? Math.round(quote.dividendYield * 100) / 100

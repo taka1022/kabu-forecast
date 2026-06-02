@@ -231,7 +231,7 @@ export default function Dashboard(){
                 {ms&&<span style={{fontSize:7,padding:"1px 4px",borderRadius:3,background:signalBg(ms.signal),color:scoreColor(ms.normalizedScore),fontWeight:600}}>{ms.signal}</span>}
               </div>
               <div className="mono" style={{fontSize:15,fontWeight:700,color:"var(--text-primary)"}}>{q.price.toLocaleString()}</div>
-              <div className="mono" style={{fontSize:10,color:up?"var(--green)":"var(--red)"}}>{up?"▲":"▼"}{q.changePct.toFixed(2)}%</div>
+              <div className="mono" style={{fontSize:10,color:up?"var(--red)":"var(--green)"}}>{up?"▲":"▼"}{q.changePct.toFixed(2)}%</div>
             </button>);
           })}
         </div>
@@ -250,7 +250,7 @@ export default function Dashboard(){
                 </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
                   <span className="mono" style={{fontSize:18,fontWeight:700}}>¥{q.price.toLocaleString()}</span>
-                  <span className="mono" style={{fontSize:12,color:up?"var(--green)":"var(--red)"}}>{up?"▲":"▼"}{q.changePct.toFixed(2)}%</span>
+                  <span className="mono" style={{fontSize:12,color:up?"var(--red)":"var(--green)"}}>{up?"▲":"▼"}{q.changePct.toFixed(2)}%</span>
                 </div>
               </div>);
             })}
@@ -273,7 +273,7 @@ export default function Dashboard(){
                 </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
                   <span className="mono" style={{fontSize:20,fontWeight:700}}>¥{q.price.toLocaleString()}</span>
-                  <span className="mono" style={{color:up?"var(--green)":"var(--red)",fontSize:13,fontWeight:600}}>{up?"▲":"▼"} {Math.abs(q.change)} ({up?"+":""}{q.changePct.toFixed(2)}%)</span>
+                  <span className="mono" style={{color:up?"var(--red)":"var(--green)",fontSize:13,fontWeight:600}}>{up?"▲":"▼"} {Math.abs(q.change)} ({up?"+":""}{q.changePct.toFixed(2)}%)</span>
                 </div>
               </div>);
             })}
@@ -293,7 +293,7 @@ export default function Dashboard(){
                 </div>
                 <div style={{display:"flex",alignItems:"baseline",gap:mobile?8:16,marginTop:4}}>
                   <span className="mono" style={{fontSize:mobile?30:40,fontWeight:700}}>¥{stk.price.toLocaleString()}</span>
-                  <span className="mono" style={{fontSize:mobile?15:20,fontWeight:600,color:isUp?"var(--green)":"var(--red)"}}>{isUp?"+":""}{stk.change} ({isUp?"+":""}{stk.changePct.toFixed(2)}%)</span>
+                  <span className="mono" style={{fontSize:mobile?15:20,fontWeight:600,color:isUp?"var(--red)":"var(--green)"}}>{isUp?"+":""}{stk.change} ({isUp?"+":""}{stk.changePct.toFixed(2)}%)</span>
                 </div>
               </div>
               <div style={{display:"flex",gap:3,background:"var(--bg-card-alt)",borderRadius:8,padding:2,border:"1px solid var(--border-light)"}}>
@@ -313,14 +313,14 @@ export default function Dashboard(){
               <ResponsiveContainer width="100%" height={mobile?200:280}>
                 <AreaChart data={chart} margin={{top:5,right:mobile?4:10,left:mobile?0:10,bottom:5}}>
                   <defs>
-                    <linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={isUp?"#059669":"#E11D48"} stopOpacity={0.12}/><stop offset="100%" stopColor={isUp?"#059669":"#E11D48"} stopOpacity={0}/></linearGradient>
+                    <linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={isUp?"#E11D48":"#059669"} stopOpacity={0.12}/><stop offset="100%" stopColor={isUp?"#E11D48":"#059669"} stopOpacity={0}/></linearGradient>
                   </defs>
                   <XAxis dataKey="date" tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={{stroke:"var(--border-light)"}} tickLine={false} interval={xInterval}/>
                   <YAxis domain={[pMin,pMax]} tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={false} tickLine={false} tickFormatter={(v:number)=>`¥${Math.round(v).toLocaleString()}`} width={mobile?55:78}/>
                   <Tooltip content={<PriceTip/>}/>
                   <ReferenceLine y={stk.prevClose} stroke="#D4D4D4" strokeDasharray="3 3"/>
                   {showBB&&<><Line type="monotone" dataKey="bbUpper2" stroke="var(--purple)" strokeWidth={0.5} dot={false} strokeOpacity={0.4}/><Line type="monotone" dataKey="bbLower2" stroke="var(--purple)" strokeWidth={0.5} dot={false} strokeOpacity={0.4}/></>}
-                  <Area type="monotone" dataKey="price" stroke={isUp?"var(--green)":"var(--red)"} strokeWidth={2} fill="url(#pg)" dot={false} activeDot={{r:4,fill:"var(--accent)",stroke:"#fff",strokeWidth:2}}/>
+                  <Area type="monotone" dataKey="price" stroke={isUp?"var(--red)":"var(--green)"} strokeWidth={2} fill="url(#pg)" dot={false} activeDot={{r:4,fill:"var(--accent)",stroke:"#fff",strokeWidth:2}}/>
                   <Line type="monotone" dataKey="ma25" stroke="var(--amber)" strokeWidth={1} dot={false} strokeDasharray="4 2" connectNulls={false}/>
                 </AreaChart>
               </ResponsiveContainer>
