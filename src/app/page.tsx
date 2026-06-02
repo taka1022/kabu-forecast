@@ -66,12 +66,12 @@ function RangeBar({range,compact}:{range:TargetRange;compact?:boolean}){
       <span className="mono" style={{fontSize:10,color:"var(--text-muted)"}}>{range.period}</span>
     </div>
     <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-      <span className="mono" style={{fontSize:11,color:"var(--red)"}}>{range.low.toLocaleString()}</span>
+      <span className="mono" style={{fontSize:11,color:"var(--green)"}}>{range.low.toLocaleString()}</span>
       <span className="mono" style={{fontSize:11,color:"var(--accent)",fontWeight:600}}>{range.mid.toLocaleString()}</span>
-      <span className="mono" style={{fontSize:11,color:"var(--green)"}}>{range.high.toLocaleString()}</span>
+      <span className="mono" style={{fontSize:11,color:"var(--red)"}}>{range.high.toLocaleString()}</span>
     </div>
     <div style={{position:"relative",height:6,background:"#F0EEE9",borderRadius:3,overflow:"hidden"}}>
-      <div style={{position:"absolute",left:0,right:0,top:0,bottom:0,background:"linear-gradient(90deg,#FECDD3,#FDE68A,#A7F3D0)",opacity:0.6,borderRadius:3}}/>
+      <div style={{position:"absolute",left:0,right:0,top:0,bottom:0,background:"linear-gradient(90deg,#A7F3D0,#FDE68A,#FECDD3)",opacity:0.6,borderRadius:3}}/>
       <div style={{position:"absolute",left:`${pos}%`,top:-3,width:12,height:12,background:"var(--accent)",borderRadius:"50%",transform:"translateX(-50%)",boxShadow:"0 2px 6px rgba(30,58,95,0.3)",border:"2px solid #fff"}}/>
     </div>
     <div style={{textAlign:"center",marginTop:6}}>
@@ -81,9 +81,9 @@ function RangeBar({range,compact}:{range:TargetRange;compact?:boolean}){
   </Card>);
 }
 
-function scoreColor(s:number){if(s>=30)return"var(--green)";if(s>=10)return"#34D399";if(s<=-30)return"var(--red)";if(s<=-10)return"#FDA4AF";return"var(--text-muted)";}
-function signalBg(s:string){if(s.includes("追い風"))return"var(--green-bg)";if(s.includes("向かい風"))return"var(--red-bg)";return"var(--bg-card-alt)";}
-function signalBorder(s:string){if(s.includes("追い風"))return"var(--green)";if(s.includes("向かい風"))return"var(--red)";return"var(--border)";}
+function scoreColor(s:number){if(s>=30)return"var(--red)";if(s>=10)return"#FDA4AF";if(s<=-30)return"var(--green)";if(s<=-10)return"#34D399";return"var(--text-muted)";}
+function signalBg(s:string){if(s.includes("追い風"))return"var(--red-bg)";if(s.includes("向かい風"))return"var(--green-bg)";return"var(--bg-card-alt)";}
+function signalBorder(s:string){if(s.includes("追い風"))return"var(--red)";if(s.includes("向かい風"))return"var(--green)";return"var(--border)";}
 
 // --- Phase 5: Integrated Forecast ---
 interface IntegratedForecast {
@@ -378,7 +378,7 @@ export default function Dashboard(){
                 <ComposedChart data={chart} margin={{top:5,right:mobile?4:10,left:mobile?0:10,bottom:5}}>
                   <XAxis dataKey="date" tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={{stroke:"var(--border-light)"}} tickLine={false} interval={xInterval}/>
                   <YAxis tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={false} tickLine={false} width={mobile?35:45}/><Tooltip content={<MacdTip/>}/><ReferenceLine y={0} stroke="#D4D4D4" strokeDasharray="3 3"/>
-                  <Bar dataKey="macdHist" barSize={mobile?2:3}>{chart.map((d,i)=><Cell key={i} fill={(d.macdHist??0)>=0?"var(--green)":"var(--red)"} fillOpacity={0.5}/>)}</Bar>
+                  <Bar dataKey="macdHist" barSize={mobile?2:3}>{chart.map((d,i)=><Cell key={i} fill={(d.macdHist??0)>=0?"var(--red)":"var(--green)"} fillOpacity={0.5}/>)}</Bar>
                   <Line type="monotone" dataKey="macd" stroke="var(--accent)" strokeWidth={1.5} dot={false} connectNulls={false}/>
                   <Line type="monotone" dataKey="macdSignal" stroke="var(--purple)" strokeWidth={1} dot={false} strokeDasharray="4 2" connectNulls={false}/>
                 </ComposedChart>
@@ -389,8 +389,8 @@ export default function Dashboard(){
                   <span style={{fontWeight:600,color:"var(--accent)"}}>MACD</span>：短期（12日）と長期（26日）の移動平均の差でトレンド転換を探る。
                   <span style={{color:"var(--accent)",fontWeight:500}}>MACDライン</span>が
                   <span style={{color:"var(--purple)",fontWeight:500}}>シグナルライン</span>を上抜け → 買いシグナル（ゴールデンクロス）、下抜け → 売りシグナル（デッドクロス）。
-                  <span style={{color:"var(--green)",fontWeight:500}}>緑の棒</span>は上昇の勢い、
-                  <span style={{color:"var(--red)",fontWeight:500}}>赤の棒</span>は下落の勢い。RSIと併用すると信頼度が上がる。
+                  <span style={{color:"var(--red)",fontWeight:500}}>赤の棒</span>は上昇の勢い、
+                  <span style={{color:"var(--green)",fontWeight:500}}>緑の棒</span>は下落の勢い。RSIと併用すると信頼度が上がる。
                 </div>
               </div>
             </Card>
@@ -407,7 +407,7 @@ export default function Dashboard(){
                 <Card style={{padding:"12px 14px",borderLeft:"3px solid var(--purple)"}}>
                   <div style={{fontSize:10,color:"var(--text-muted)",marginBottom:3,fontWeight:500}}>MACD</div>
                   <div className="mono" style={{fontSize:18,fontWeight:700,color:"var(--accent)"}}>{indicators.macd?.toFixed(1)??"—"}</div>
-                  <span style={{fontSize:10,padding:"2px 8px",borderRadius:4,background:indicators.macdTrend==="上昇トレンド"?"var(--green-bg)":indicators.macdTrend==="下降トレンド"?"var(--red-bg)":"var(--bg-card-alt)",color:indicators.macdTrend==="上昇トレンド"?"var(--green)":indicators.macdTrend==="下降トレンド"?"var(--red)":"var(--text-muted)",fontWeight:500}}>{indicators.macdTrend}</span>
+                  <span style={{fontSize:10,padding:"2px 8px",borderRadius:4,background:indicators.macdTrend==="上昇トレンド"?"var(--red-bg)":indicators.macdTrend==="下降トレンド"?"var(--green-bg)":"var(--bg-card-alt)",color:indicators.macdTrend==="上昇トレンド"?"var(--red)":indicators.macdTrend==="下降トレンド"?"var(--green)":"var(--text-muted)",fontWeight:500}}>{indicators.macdTrend}</span>
                 </Card>
                 <Card style={{padding:"12px 14px",borderLeft:"3px solid var(--amber)"}}>
                   <div style={{fontSize:10,color:"var(--text-muted)",marginBottom:3,fontWeight:500}}>PER</div>
@@ -431,16 +431,16 @@ export default function Dashboard(){
 
             {/* === Phase 5: Integrated Forecast === */}
             {forecast&&(
-              <Card style={{marginBottom:mobile?14:18,overflow:"hidden",border:forecast.signal==="買い"||forecast.signal==="やや買い"?"1px solid var(--green)":forecast.signal==="売り"||forecast.signal==="やや売り"?"1px solid var(--red)":"1px solid var(--border-light)"}}>
+              <Card style={{marginBottom:mobile?14:18,overflow:"hidden",border:forecast.signal==="買い"||forecast.signal==="やや買い"?"1px solid var(--red)":forecast.signal==="売り"||forecast.signal==="やや売り"?"1px solid var(--green)":"1px solid var(--border-light)"}}>
                 <div style={{display:mobile?"block":"flex"}}>
                   {/* Score Display */}
                   <div style={{padding:mobile?"16px":"20px 24px",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minWidth:mobile?"auto":160,
                     background:forecast.signal.includes("買")?"linear-gradient(135deg,rgba(5,150,105,0.06),rgba(5,150,105,0.02))":forecast.signal.includes("売")?"linear-gradient(135deg,rgba(225,29,72,0.06),rgba(225,29,72,0.02))":"var(--bg-card-alt)",
                     borderRight:mobile?"none":"1px solid var(--border-light)",borderBottom:mobile?"1px solid var(--border-light)":"none"}}>
                     <div style={{fontSize:10,color:"var(--text-muted)",fontWeight:500,marginBottom:4,letterSpacing:1}}>統合スコア</div>
-                    <div className="mono" style={{fontSize:mobile?36:44,fontWeight:700,color:forecast.totalScore>=15?"var(--green)":forecast.totalScore<=-15?"var(--red)":"var(--text-primary)",lineHeight:1}}>{forecast.totalScore>0?"+":""}{forecast.totalScore}</div>
+                    <div className="mono" style={{fontSize:mobile?36:44,fontWeight:700,color:forecast.totalScore>=15?"var(--red)":forecast.totalScore<=-15?"var(--green)":"var(--text-primary)",lineHeight:1}}>{forecast.totalScore>0?"+":""}{forecast.totalScore}</div>
                     <div style={{marginTop:6,padding:"3px 12px",borderRadius:6,fontSize:13,fontWeight:700,
-                      background:forecast.signal.includes("買")?"var(--green)":forecast.signal.includes("売")?"var(--red)":"var(--text-muted)",
+                      background:forecast.signal.includes("買")?"var(--red)":forecast.signal.includes("売")?"var(--green)":"var(--text-muted)",
                       color:"#fff"}}>{forecast.signal}</div>
                     <div style={{marginTop:4,fontSize:9,color:"var(--text-dim)"}}>信頼度: {forecast.confidence}</div>
                   </div>
@@ -458,12 +458,12 @@ export default function Dashboard(){
                               <span style={{fontSize:mobile?11:12,fontWeight:600}}>{l.name}</span>
                               <span className="mono" style={{fontSize:10,color:"var(--text-dim)"}}>(×{l.weight}%)</span>
                             </div>
-                            <span className="mono" style={{fontSize:mobile?13:14,fontWeight:700,color:l.score>=15?"var(--green)":l.score<=-15?"var(--red)":"var(--text-primary)"}}>{l.score>0?"+":""}{l.score}</span>
+                            <span className="mono" style={{fontSize:mobile?13:14,fontWeight:700,color:l.score>=15?"var(--red)":l.score<=-15?"var(--green)":"var(--text-primary)"}}>{l.score>0?"+":""}{l.score}</span>
                           </div>
                           <div style={{position:"relative",height:4,background:"#EEECE7",borderRadius:2,overflow:"hidden"}}>
                             <div style={{position:"absolute",left:"50%",top:0,bottom:0,width:1,background:"var(--border)"}} />
                             <div style={{position:"absolute",left:`${Math.min(pos, 50)}%`,width:`${Math.abs(pos - 50)}%`,top:0,bottom:0,
-                              background:l.score>=0?"var(--green)":"var(--red)",borderRadius:2,opacity:0.6}} />
+                              background:l.score>=0?"var(--red)":"var(--green)",borderRadius:2,opacity:0.6}} />
                           </div>
                           <div style={{fontSize:mobile?9:10,color:"var(--text-dim)",marginTop:2}}>{l.detail}</div>
                         </div>
@@ -494,7 +494,7 @@ export default function Dashboard(){
                 {macroIndicators.map(mi=>(<Card key={mi.id} style={{padding:mobile?"8px 6px":"12px",textAlign:"center"}}>
                   <div style={{fontSize:mobile?9:10,color:"var(--text-muted)",marginBottom:3,fontWeight:500}}>{mi.nameJa}</div>
                   <div className="mono" style={{fontSize:mobile?12:15,fontWeight:700}}>{mi.id==="nikkei"?Math.round(mi.value).toLocaleString():mi.value.toLocaleString()}</div>
-                  <div className="mono" style={{fontSize:mobile?9:10,color:mi.direction==="up"?"var(--green)":mi.direction==="down"?"var(--red)":"var(--text-dim)",marginTop:1}}>{mi.direction==="up"?"▲":mi.direction==="down"?"▼":"—"}{mi.changePct>0?"+":""}{mi.changePct.toFixed(2)}%</div>
+                  <div className="mono" style={{fontSize:mobile?9:10,color:mi.direction==="up"?"var(--red)":mi.direction==="down"?"var(--green)":"var(--text-dim)",marginTop:1}}>{mi.direction==="up"?"▲":mi.direction==="down"?"▼":"—"}{mi.changePct>0?"+":""}{mi.changePct.toFixed(2)}%</div>
                 </Card>))}
               </div>
 
@@ -509,15 +509,15 @@ export default function Dashboard(){
                 {currentMS.factors.map(f=>{const mi=macroIndicators.find(m=>m.id===f.factorId);
                   return mobile?(
                     <div key={f.factorId} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",borderBottom:"1px solid var(--border-light)"}}>
-                      <div><span style={{fontSize:12,fontWeight:500}}>{f.factorName}</span><span className="mono" style={{fontSize:10,color:mi?.direction==="up"?"var(--green)":mi?.direction==="down"?"var(--red)":"var(--text-dim)",marginLeft:6}}>{mi?.direction==="up"?"▲":mi?.direction==="down"?"▼":"—"}</span></div>
-                      {f.score!==0?<span className="mono" style={{fontSize:13,fontWeight:700,color:f.score>0?"var(--green)":"var(--red)",padding:"2px 8px",borderRadius:4,background:f.score>0?"var(--green-bg)":"var(--red-bg)"}}>{f.score>0?"+":""}{f.score}</span>:<span className="mono" style={{fontSize:12,color:"var(--text-dim)"}}>0</span>}
+                      <div><span style={{fontSize:12,fontWeight:500}}>{f.factorName}</span><span className="mono" style={{fontSize:10,color:mi?.direction==="up"?"var(--red)":mi?.direction==="down"?"var(--green)":"var(--text-dim)",marginLeft:6}}>{mi?.direction==="up"?"▲":mi?.direction==="down"?"▼":"—"}</span></div>
+                      {f.score!==0?<span className="mono" style={{fontSize:13,fontWeight:700,color:f.score>0?"var(--red)":"var(--green)",padding:"2px 8px",borderRadius:4,background:f.score>0?"var(--red-bg)":"var(--green-bg)"}}>{f.score>0?"+":""}{f.score}</span>:<span className="mono" style={{fontSize:12,color:"var(--text-dim)"}}>0</span>}
                     </div>
                   ):(
                     <div key={f.factorId} style={{display:"grid",gridTemplateColumns:"100px 80px 1fr 50px",alignItems:"center",padding:"8px 16px",borderBottom:"1px solid var(--border-light)"}}>
                       <span style={{fontSize:12,fontWeight:500}}>{f.factorName}</span>
-                      <span className="mono" style={{fontSize:11,color:mi?.direction==="up"?"var(--green)":mi?.direction==="down"?"var(--red)":"var(--text-dim)"}}>{mi?.direction==="up"?"▲ 上昇":mi?.direction==="down"?"▼ 下落":"— 横這"}</span>
+                      <span className="mono" style={{fontSize:11,color:mi?.direction==="up"?"var(--red)":mi?.direction==="down"?"var(--green)":"var(--text-dim)"}}>{mi?.direction==="up"?"▲ 上昇":mi?.direction==="down"?"▼ 下落":"— 横這"}</span>
                       <span style={{fontSize:11,color:"var(--text-muted)"}}>{f.reason}</span>
-                      <div style={{textAlign:"right"}}>{f.score!==0?<span className="mono" style={{fontSize:12,fontWeight:700,color:f.score>0?"var(--green)":"var(--red)",padding:"2px 8px",borderRadius:4,background:f.score>0?"var(--green-bg)":"var(--red-bg)"}}>{f.score>0?"+":""}{f.score}</span>:<span className="mono" style={{fontSize:12,color:"var(--text-dim)"}}>0</span>}</div>
+                      <div style={{textAlign:"right"}}>{f.score!==0?<span className="mono" style={{fontSize:12,fontWeight:700,color:f.score>0?"var(--red)":"var(--green)",padding:"2px 8px",borderRadius:4,background:f.score>0?"var(--red-bg)":"var(--green-bg)"}}>{f.score>0?"+":""}{f.score}</span>:<span className="mono" style={{fontSize:12,color:"var(--text-dim)"}}>0</span>}</div>
                     </div>
                   );
                 })}
@@ -591,14 +591,14 @@ export default function Dashboard(){
                             <td style={{padding:mobile?"8px 10px":"10px 16px",fontSize:mobile?11:12,fontWeight:600,color:"var(--accent)"}}>{f.fiscalYear}</td>
                             <td style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right"}}>
                               <div className="mono" style={{fontSize:mobile?12:14,fontWeight:600}}>{f.revenue?fmtBigNum(f.revenue):"—"}</div>
-                              {revGrowth!==null&&<div className="mono" style={{fontSize:9,color:revGrowth>=0?"var(--green)":"var(--red)",marginTop:1}}>前年比 {revGrowth>=0?"+":""}{revGrowth.toFixed(1)}%</div>}
+                              {revGrowth!==null&&<div className="mono" style={{fontSize:9,color:revGrowth>=0?"var(--red)":"var(--green)",marginTop:1}}>前年比 {revGrowth>=0?"+":""}{revGrowth.toFixed(1)}%</div>}
                             </td>
                             <td style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right"}}>
                               <div className="mono" style={{fontSize:mobile?12:14,fontWeight:600}}>{f.netIncome?fmtBigNum(f.netIncome):"—"}</div>
-                              {netGrowth!==null&&<div className="mono" style={{fontSize:9,color:netGrowth>=0?"var(--green)":"var(--red)",marginTop:1}}>前年比 {netGrowth>=0?"+":""}{netGrowth.toFixed(1)}%</div>}
+                              {netGrowth!==null&&<div className="mono" style={{fontSize:9,color:netGrowth>=0?"var(--red)":"var(--green)",marginTop:1}}>前年比 {netGrowth>=0?"+":""}{netGrowth.toFixed(1)}%</div>}
                             </td>
                             <td style={{padding:mobile?"8px 10px":"10px 16px",textAlign:"right"}}>
-                              <span className="mono" style={{fontSize:mobile?12:14,fontWeight:600,color:netMargin&&netMargin>=10?"var(--green)":"var(--text-primary)"}}>{netMargin!==null?netMargin.toFixed(1)+"%":"—"}</span>
+                              <span className="mono" style={{fontSize:mobile?12:14,fontWeight:600,color:netMargin&&netMargin>=10?"var(--red)":"var(--text-primary)"}}>{netMargin!==null?netMargin.toFixed(1)+"%":"—"}</span>
                             </td>
                           </tr>
                         );
@@ -679,8 +679,8 @@ export default function Dashboard(){
                       <div style={{marginBottom:8}}>
                         <span style={{fontSize:10,color:"var(--text-muted)",fontWeight:500}}>センチメント: </span>
                         <span style={{fontSize:12,fontWeight:700,padding:"2px 8px",borderRadius:4,
-                          background:aiResult.sentiment.includes("強気")?"var(--green-bg)":aiResult.sentiment.includes("弱気")?"var(--red-bg)":"var(--bg-card-alt)",
-                          color:aiResult.sentiment.includes("強気")?"var(--green)":aiResult.sentiment.includes("弱気")?"var(--red)":"var(--text-primary)"}}>{aiResult.sentiment}</span>
+                          background:aiResult.sentiment.includes("強気")?"var(--red-bg)":aiResult.sentiment.includes("弱気")?"var(--green-bg)":"var(--bg-card-alt)",
+                          color:aiResult.sentiment.includes("強気")?"var(--red)":aiResult.sentiment.includes("弱気")?"var(--green)":"var(--text-primary)"}}>{aiResult.sentiment}</span>
                       </div>
                     )}
                     {aiResult.upside&&(
@@ -708,17 +708,17 @@ export default function Dashboard(){
                     )}
                     {aiResult.catalysts&&aiResult.catalysts.length>0&&(
                       <div style={{marginBottom:8}}>
-                        <div style={{fontSize:10,color:"var(--green)",fontWeight:600,marginBottom:4}}>カタリスト</div>
+                        <div style={{fontSize:10,color:"var(--red)",fontWeight:600,marginBottom:4}}>カタリスト</div>
                         {aiResult.catalysts.map((c:string,i:number)=>(<div key={i} style={{fontSize:mobile?10:11,color:"var(--text-secondary)",padding:"3px 0",paddingLeft:12,position:"relative"}}>
-                          <span style={{position:"absolute",left:0,color:"var(--green)"}}>↑</span>{c}
+                          <span style={{position:"absolute",left:0,color:"var(--red)"}}>↑</span>{c}
                         </div>))}
                       </div>
                     )}
                     {(aiResult.risk||aiResult.risks)&&(
                       <div>
-                        <div style={{fontSize:10,color:"var(--red)",fontWeight:600,marginBottom:4}}>リスク</div>
+                        <div style={{fontSize:10,color:"var(--green)",fontWeight:600,marginBottom:4}}>リスク</div>
                         {aiResult.risks?aiResult.risks.map((r:string,i:number)=>(<div key={i} style={{fontSize:mobile?10:11,color:"var(--text-secondary)",padding:"3px 0",paddingLeft:12,position:"relative"}}>
-                          <span style={{position:"absolute",left:0,color:"var(--red)"}}>↓</span>{r}
+                          <span style={{position:"absolute",left:0,color:"var(--green)"}}>↓</span>{r}
                         </div>)):(<div style={{fontSize:mobile?10:11,color:"var(--text-secondary)"}}>{aiResult.risk}</div>)}
                       </div>
                     )}
