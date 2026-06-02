@@ -63,19 +63,11 @@ export async function fetchStockQuote(code: string): Promise<StockQuote | null> 
     const change = price - prevClose;
     const changePct = prevClose ? (change / prevClose) * 100 : 0;
 
-    // 会社予想EPSからPER算出
-    let per: number | null = null;
-    let eps: number | null = quote.epsTrailingTwelveMonths ?? null;
-    try {
-      const summary: any = await yf.quoteSummary(toTicker(code), { modules: ["defaultKeyStatistics", "financialData"] });
-      const forwardEps = summary?.defaultKeyStatistics?.forwardEps?.raw ?? summary?.defaultKeyStatistics?.forwardEps ?? null;
-      if (forwardEps && forwardEps > 0 && price > 0) {
-        per = Math.round((price / forwardEps) * 10) / 10;
-        eps = forwardEps;
-      }
-    } catch (e) {
-      // フォールバック: 既存EPSで計算
+    let per = quote.trailingPE ?? null;
+    if (per !== null && (per > 500 || per <= 0)) {
+      per = null;
     }
+    const eps = quote.epsTrailingTwelveMonths ?? null;
     if (per === null && eps && eps > 0 && price > 0) {
       per = Math.round((price / eps) * 10) / 10;
     }

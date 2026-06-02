@@ -552,7 +552,7 @@ export default function Dashboard(){
               <div style={{display:"grid",gridTemplateColumns:mobile?"repeat(3,1fr)":"repeat(6,1fr)",padding:"8px 0"}}>
                 {[
                   {l:"時価総額",v:fmtCap(stk.marketCap),h:false},
-                  {l:"PER（予）",v:stk.per?.toFixed(1)??"—",u:"倍",h:(stk.per??99)<15},
+                  {l:"PER",v:stk.per?.toFixed(1)??"—",u:"倍",h:(stk.per??99)<15},
                   {l:"PBR",v:stk.pbr?.toFixed(2)??"—",u:"倍",h:(stk.pbr??99)<1},
                   {l:"配当利回",v:stk.dividendYield?.toFixed(2)??"—",u:"%",h:(stk.dividendYield??0)>3},
                   {l:"EPS",v:stk.eps?`¥${stk.eps.toFixed(1)}`:"—",h:false},
