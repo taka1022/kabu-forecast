@@ -4,12 +4,12 @@ import { useState, useEffect, useCallback } from "react";
 import {
   AreaChart, Area, Line, XAxis, YAxis, Tooltip,
   ResponsiveContainer, ReferenceLine, Bar, Cell,
-  ComposedChart,
+  ComposedChart, BarChart,
 } from "recharts";
 
 // --- Types ---
 interface StockQuote { code:string; name:string; nameEn:string; sector:string; price:number; prevClose:number; change:number; changePct:number; open:number; high:number; low:number; volume:number; marketCap:number; per:number|null; pbr:number|null; dividendYield:number|null; eps:number|null; fiftyTwoWeekHigh:number|null; fiftyTwoWeekLow:number|null; }
-interface ChartPoint { date:string; price:number; volume:number; ma25:number|null; ma75:number|null; bbUpper2:number|null; bbUpper1:number|null; bbMid:number|null; bbLower1:number|null; bbLower2:number|null; rsi:number|null; macd:number|null; macdSignal:number|null; macdHist:number|null; }
+interface ChartPoint { date:string; price:number; volume:number; ma5:number|null; ma25:number|null; ma75:number|null; bbUpper2:number|null; bbUpper1:number|null; bbMid:number|null; bbLower1:number|null; bbLower2:number|null; rsi:number|null; macd:number|null; macdSignal:number|null; macdHist:number|null; }
 interface TargetRange { label:string; period:string; low:number; mid:number; high:number; currentPrice:number; positionPct:number; }
 interface Indicators { rsi:number|null; rsiSignal:string; macd:number|null; macdSignal:number|null; macdHistogram:number|null; macdTrend:string; }
 interface MacroIndicator { id:string; name:string; nameJa:string; value:number; prevValue:number; change:number; changePct:number; unit:string; direction:"up"|"down"|"flat"; }
@@ -35,7 +35,9 @@ function PriceTip({active,payload,label}:any){
   return(<div className="mono" style={{background:"#fff",border:"1px solid var(--border)",borderRadius:8,padding:"8px 12px",fontSize:11,boxShadow:"0 4px 12px rgba(0,0,0,0.08)"}}>
     <div style={{color:"var(--text-muted)",marginBottom:3}}>{label}</div>
     <div style={{color:"var(--text-primary)",fontWeight:700}}>¥{d?.price?.toLocaleString()}</div>
-    {d?.ma25&&<div style={{color:"var(--amber)",fontSize:10}}>MA25: ¥{d.ma25.toLocaleString()}</div>}
+    {d?.ma5&&<div style={{color:"var(--amber)",fontSize:10}}>MA5: ¥{d.ma5.toLocaleString()}</div>}
+    {d?.ma25&&<div style={{color:"var(--red)",fontSize:10}}>MA25: ¥{d.ma25.toLocaleString()}</div>}
+    {d?.ma75&&<div style={{color:"var(--green)",fontSize:10}}>MA75: ¥{d.ma75.toLocaleString()}</div>}
     <div style={{color:"var(--text-dim)",fontSize:10,marginTop:2}}>出来高: {fmtVol(d?.volume||0)}</div>
   </div>);
 }
@@ -171,7 +173,6 @@ export default function Dashboard(){
   const[targets,setTargets]=useState<TargetRange[]>([]);
   const[indicators,setIndicators]=useState<Indicators|null>(null);
   const[showBB,setShowBB]=useState(true);
-  const[subChart,setSubChart]=useState<"rsi"|"macd">("rsi");
   const[macroIndicators,setMacroIndicators]=useState<MacroIndicator[]>([]);
   const[macroScores,setMacroScores]=useState<StockMacroScore[]>([]);
   const[sidebarOpen,setSidebarOpen]=useState(false);
@@ -310,6 +311,11 @@ export default function Dashboard(){
                   <button onClick={()=>setShowBB(!showBB)} className="mono" style={{fontSize:10,padding:"3px 10px",borderRadius:5,border:"1px solid",cursor:"pointer",borderColor:showBB?"var(--purple)":"var(--border)",background:showBB?"var(--purple-bg)":"transparent",color:showBB?"var(--purple)":"var(--text-muted)",fontWeight:500}}>BB</button>
                 </div>
               </div>
+              <div style={{display:"flex",gap:mobile?10:14,padding:mobile?"0 10px 6px":"0 16px 8px",fontSize:mobile?10:11}}>
+                <span style={{display:"inline-flex",alignItems:"center",gap:4,color:"var(--text-muted)"}}><span style={{width:12,height:2,background:"var(--amber)",display:"inline-block"}}/>MA5（短期）</span>
+                <span style={{display:"inline-flex",alignItems:"center",gap:4,color:"var(--text-muted)"}}><span style={{width:12,height:2,background:"var(--red)",display:"inline-block"}}/>MA25（中期）</span>
+                <span style={{display:"inline-flex",alignItems:"center",gap:4,color:"var(--text-muted)"}}><span style={{width:12,height:2,background:"var(--green)",display:"inline-block"}}/>MA75（長期）</span>
+              </div>
               <ResponsiveContainer width="100%" height={mobile?200:280}>
                 <AreaChart data={chart} margin={{top:5,right:mobile?4:10,left:mobile?0:10,bottom:5}}>
                   <defs>
@@ -321,61 +327,72 @@ export default function Dashboard(){
                   <ReferenceLine y={stk.prevClose} stroke="#D4D4D4" strokeDasharray="3 3"/>
                   {showBB&&<><Line type="monotone" dataKey="bbUpper2" stroke="var(--purple)" strokeWidth={0.5} dot={false} strokeOpacity={0.4}/><Line type="monotone" dataKey="bbLower2" stroke="var(--purple)" strokeWidth={0.5} dot={false} strokeOpacity={0.4}/></>}
                   <Area type="monotone" dataKey="price" stroke={isUp?"var(--red)":"var(--green)"} strokeWidth={2} fill="url(#pg)" dot={false} activeDot={{r:4,fill:"var(--accent)",stroke:"#fff",strokeWidth:2}}/>
-                  <Line type="monotone" dataKey="ma25" stroke="var(--amber)" strokeWidth={1} dot={false} strokeDasharray="4 2" connectNulls={false}/>
+                  <Line type="monotone" dataKey="ma5" stroke="var(--amber)" strokeWidth={1} dot={false} connectNulls={false}/>
+                  <Line type="monotone" dataKey="ma25" stroke="var(--red)" strokeWidth={1} dot={false} connectNulls={false}/>
+                  <Line type="monotone" dataKey="ma75" stroke="var(--green)" strokeWidth={1} dot={false} connectNulls={false}/>
                 </AreaChart>
+              </ResponsiveContainer>
+              <ResponsiveContainer width="100%" height={mobile?60:80}>
+                <BarChart data={chart} margin={{top:2,right:mobile?4:10,left:mobile?0:10,bottom:0}}>
+                  <XAxis dataKey="date" hide/>
+                  <YAxis tick={{fontSize:8,fill:"#666",fontFamily:"DM Mono"}} axisLine={false} tickLine={false} width={mobile?55:78} tickFormatter={(v:number)=>fmtVol(v)}/>
+                  <Bar dataKey="volume" barSize={mobile?2:3}>
+                    {chart.map((d,i)=>{const prev=i>0?chart[i-1]:d;return <Cell key={i} fill={d.price>=prev.price?"var(--red)":"var(--green)"} fillOpacity={0.4}/>;})}
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
             </Card>
 
 
-            {/* RSI / MACD sub chart */}
+            {/* RSI chart */}
             <Card style={{padding:mobile?"10px 6px 10px 0":"14px 16px 12px 0",marginBottom:14}}>
-              <div style={{display:"flex",gap:4,padding:mobile?"0 10px":"0 16px",marginBottom:8}}>
-                {(["rsi","macd"] as const).map(t=>(<button key={t} onClick={()=>setSubChart(t)} className="mono" style={{fontSize:11,padding:"4px 12px",borderRadius:6,border:"none",cursor:"pointer",background:subChart===t?"var(--accent)":"var(--bg-card-alt)",color:subChart===t?"#fff":"var(--text-muted)",fontWeight:600,transition:"all 0.15s"}}>{t.toUpperCase()}</button>))}
+              <div style={{padding:mobile?"0 10px":"0 16px",marginBottom:8}}>
+                <span className="sans" style={{fontSize:13,fontWeight:600,color:"var(--accent)"}}>RSI</span>
               </div>
-              {subChart==="rsi"?(
-                <>
-                <ResponsiveContainer width="100%" height={mobile?160:220}>
-                  <AreaChart data={chart} margin={{top:5,right:mobile?4:10,left:mobile?0:10,bottom:5}}>
-                    <defs><linearGradient id="rsiFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--accent)" stopOpacity={0.08}/><stop offset="100%" stopColor="var(--accent)" stopOpacity={0}/></linearGradient></defs>
-                    <XAxis dataKey="date" tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={{stroke:"var(--border-light)"}} tickLine={false} interval={xInterval}/>
-                    <YAxis domain={[0,100]} ticks={[20,30,50,70,80]} tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={false} tickLine={false} width={mobile?25:35}/>
-                    <Tooltip content={<RsiTip/>}/><ReferenceLine y={70} stroke="var(--red)" strokeDasharray="3 3" strokeOpacity={0.4}/><ReferenceLine y={30} stroke="var(--green)" strokeDasharray="3 3" strokeOpacity={0.4}/><ReferenceLine y={50} stroke="#D4D4D4" strokeDasharray="2 4" strokeOpacity={0.3}/>
-                    <Area type="monotone" dataKey="rsi" stroke="var(--accent)" strokeWidth={1.5} fill="url(#rsiFill)" dot={false} connectNulls={false}/>
-                  </AreaChart>
-                </ResponsiveContainer>
-                {/* RSI解説 */}
-                <div style={{padding:mobile?"10px 12px":"12px 16px",borderTop:"1px solid var(--border-light)",marginTop:4}}>
-                  <div style={{fontSize:mobile?10:11,color:"var(--text-muted)",lineHeight:1.7}}>
-                    <span style={{fontWeight:600,color:"var(--accent)"}}>RSI（相対力指数）</span>：直近14日間の上昇・下落のバランスを0〜100で表示。
-                    <span style={{color:"var(--red)",fontWeight:500}}>70以上</span>は買われすぎ（過熱）、
-                    <span style={{color:"var(--green)",fontWeight:500}}>30以下</span>は売られすぎ（反発の可能性）。
-                    50付近は中立。ただし強いトレンド時は70超えでもさらに上昇することがある。
-                  </div>
+              <ResponsiveContainer width="100%" height={mobile?160:220}>
+                <AreaChart data={chart} margin={{top:5,right:mobile?4:10,left:mobile?0:10,bottom:5}}>
+                  <defs><linearGradient id="rsiFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--accent)" stopOpacity={0.08}/><stop offset="100%" stopColor="var(--accent)" stopOpacity={0}/></linearGradient></defs>
+                  <XAxis dataKey="date" tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={{stroke:"var(--border-light)"}} tickLine={false} interval={xInterval}/>
+                  <YAxis domain={[0,100]} ticks={[20,30,50,70,80]} tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={false} tickLine={false} width={mobile?25:35}/>
+                  <Tooltip content={<RsiTip/>}/><ReferenceLine y={70} stroke="var(--red)" strokeDasharray="3 3" strokeOpacity={0.4}/><ReferenceLine y={30} stroke="var(--green)" strokeDasharray="3 3" strokeOpacity={0.4}/><ReferenceLine y={50} stroke="#D4D4D4" strokeDasharray="2 4" strokeOpacity={0.3}/>
+                  <Area type="monotone" dataKey="rsi" stroke="var(--accent)" strokeWidth={1.5} fill="url(#rsiFill)" dot={false} connectNulls={false}/>
+                </AreaChart>
+              </ResponsiveContainer>
+              {/* RSI解説 */}
+              <div style={{padding:mobile?"10px 12px":"12px 16px",borderTop:"1px solid var(--border-light)",marginTop:4}}>
+                <div style={{fontSize:mobile?10:11,color:"var(--text-muted)",lineHeight:1.7}}>
+                  <span style={{fontWeight:600,color:"var(--accent)"}}>RSI（相対力指数）</span>：直近14日間の上昇・下落のバランスを0〜100で表示。
+                  <span style={{color:"var(--red)",fontWeight:500}}>70以上</span>は買われすぎ（過熱）、
+                  <span style={{color:"var(--green)",fontWeight:500}}>30以下</span>は売られすぎ（反発の可能性）。
+                  50付近は中立。ただし強いトレンド時は70超えでもさらに上昇することがある。
                 </div>
-                </>
-              ):(
-                <>
-                <ResponsiveContainer width="100%" height={mobile?160:220}>
-                  <ComposedChart data={chart} margin={{top:5,right:mobile?4:10,left:mobile?0:10,bottom:5}}>
-                    <XAxis dataKey="date" tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={{stroke:"var(--border-light)"}} tickLine={false} interval={xInterval}/>
-                    <YAxis tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={false} tickLine={false} width={mobile?35:45}/><Tooltip content={<MacdTip/>}/><ReferenceLine y={0} stroke="#D4D4D4" strokeDasharray="3 3"/>
-                    <Bar dataKey="macdHist" barSize={mobile?2:3}>{chart.map((d,i)=><Cell key={i} fill={(d.macdHist??0)>=0?"var(--green)":"var(--red)"} fillOpacity={0.5}/>)}</Bar>
-                    <Line type="monotone" dataKey="macd" stroke="var(--accent)" strokeWidth={1.5} dot={false} connectNulls={false}/>
-                    <Line type="monotone" dataKey="macdSignal" stroke="var(--purple)" strokeWidth={1} dot={false} strokeDasharray="4 2" connectNulls={false}/>
-                  </ComposedChart>
-                </ResponsiveContainer>
-                {/* MACD解説 */}
-                <div style={{padding:mobile?"10px 12px":"12px 16px",borderTop:"1px solid var(--border-light)",marginTop:4}}>
-                  <div style={{fontSize:mobile?10:11,color:"var(--text-muted)",lineHeight:1.7}}>
-                    <span style={{fontWeight:600,color:"var(--accent)"}}>MACD</span>：短期（12日）と長期（26日）の移動平均の差でトレンド転換を探る。
-                    <span style={{color:"var(--accent)",fontWeight:500}}>MACDライン</span>が
-                    <span style={{color:"var(--purple)",fontWeight:500}}>シグナルライン</span>を上抜け → 買いシグナル（ゴールデンクロス）、下抜け → 売りシグナル（デッドクロス）。
-                    <span style={{color:"var(--green)",fontWeight:500}}>緑の棒</span>は上昇の勢い、
-                    <span style={{color:"var(--red)",fontWeight:500}}>赤の棒</span>は下落の勢い。RSIと併用すると信頼度が上がる。
-                  </div>
+              </div>
+            </Card>
+
+            {/* MACD chart */}
+            <Card style={{padding:mobile?"10px 6px 10px 0":"14px 16px 12px 0",marginBottom:14}}>
+              <div style={{padding:mobile?"0 10px":"0 16px",marginBottom:8}}>
+                <span className="sans" style={{fontSize:13,fontWeight:600,color:"var(--accent)"}}>MACD</span>
+              </div>
+              <ResponsiveContainer width="100%" height={mobile?160:220}>
+                <ComposedChart data={chart} margin={{top:5,right:mobile?4:10,left:mobile?0:10,bottom:5}}>
+                  <XAxis dataKey="date" tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={{stroke:"var(--border-light)"}} tickLine={false} interval={xInterval}/>
+                  <YAxis tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={false} tickLine={false} width={mobile?35:45}/><Tooltip content={<MacdTip/>}/><ReferenceLine y={0} stroke="#D4D4D4" strokeDasharray="3 3"/>
+                  <Bar dataKey="macdHist" barSize={mobile?2:3}>{chart.map((d,i)=><Cell key={i} fill={(d.macdHist??0)>=0?"var(--green)":"var(--red)"} fillOpacity={0.5}/>)}</Bar>
+                  <Line type="monotone" dataKey="macd" stroke="var(--accent)" strokeWidth={1.5} dot={false} connectNulls={false}/>
+                  <Line type="monotone" dataKey="macdSignal" stroke="var(--purple)" strokeWidth={1} dot={false} strokeDasharray="4 2" connectNulls={false}/>
+                </ComposedChart>
+              </ResponsiveContainer>
+              {/* MACD解説 */}
+              <div style={{padding:mobile?"10px 12px":"12px 16px",borderTop:"1px solid var(--border-light)",marginTop:4}}>
+                <div style={{fontSize:mobile?10:11,color:"var(--text-muted)",lineHeight:1.7}}>
+                  <span style={{fontWeight:600,color:"var(--accent)"}}>MACD</span>：短期（12日）と長期（26日）の移動平均の差でトレンド転換を探る。
+                  <span style={{color:"var(--accent)",fontWeight:500}}>MACDライン</span>が
+                  <span style={{color:"var(--purple)",fontWeight:500}}>シグナルライン</span>を上抜け → 買いシグナル（ゴールデンクロス）、下抜け → 売りシグナル（デッドクロス）。
+                  <span style={{color:"var(--green)",fontWeight:500}}>緑の棒</span>は上昇の勢い、
+                  <span style={{color:"var(--red)",fontWeight:500}}>赤の棒</span>は下落の勢い。RSIと併用すると信頼度が上がる。
                 </div>
-                </>
-              )}
+              </div>
             </Card>
 
 

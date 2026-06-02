@@ -40,6 +40,7 @@ export async function GET(
       );
     }
 
+    const ma5 = computeMA(history, 5);
     const ma25 = computeMA(history, 25);
     const ma75 = computeMA(history, 75);
     const bb = computeBollingerBands(history);
@@ -48,6 +49,7 @@ export async function GET(
 
     const chartData = history.map((h, i) => ({
       ...h,
+      ma5: ma5[i],
       ma25: ma25[i],
       ma75: ma75[i],
       bbUpper2: bb.upper2[i],
