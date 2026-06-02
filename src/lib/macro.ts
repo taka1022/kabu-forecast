@@ -123,6 +123,46 @@ const SENSITIVITY_MATRIX: Record<string, Record<string, { score: number; reason:
     oil:     { score: 0, reason: "直接的影響小" },
     gold:    { score: -1, reason: "リスクオフ局面で金上昇＝銀行株下落" },
   },
+  "9984": { // ソフトバンクG - 投資会社・テック
+    usdjpy:  { score: 1, reason: "海外投資先の円換算評価" },
+    us10y:   { score: -3, reason: "グロース投資主体のため金利感応度が極めて高い" },
+    nikkei:  { score: 2, reason: "市場センチメント連動" },
+    sp500:   { score: 3, reason: "米国テック投資が中核（ARM等）" },
+    oil:     { score: 0, reason: "直接的影響小" },
+    gold:    { score: 0, reason: "直接的影響小" },
+  },
+  "285A": { // キオクシア - NAND半導体
+    usdjpy:  { score: 2, reason: "円安で輸出競争力・海外売上増" },
+    us10y:   { score: -2, reason: "グロース株として金利感応度高" },
+    nikkei:  { score: 1, reason: "市場センチメント連動" },
+    sp500:   { score: 2, reason: "半導体セクター全体の連動" },
+    oil:     { score: -1, reason: "製造コスト増（クリーンルーム電力）" },
+    gold:    { score: 0, reason: "直接的影響小" },
+  },
+  "6857": { // アドバンテスト - 半導体検査装置
+    usdjpy:  { score: 2, reason: "円安で海外売上の円換算増" },
+    us10y:   { score: -2, reason: "グロース株として金利感応度高" },
+    nikkei:  { score: 2, reason: "市場センチメント連動" },
+    sp500:   { score: 3, reason: "米国半導体投資と直結（NVIDIA等向け）" },
+    oil:     { score: 0, reason: "直接的影響小" },
+    gold:    { score: 0, reason: "直接的影響小" },
+  },
+  "7011": { // 三菱重工 - 防衛・エネルギー・航空
+    usdjpy:  { score: 2, reason: "円安で海外事業・防衛輸出に有利" },
+    us10y:   { score: 0, reason: "防衛需要は金利非感応" },
+    nikkei:  { score: 1, reason: "景気連動だが防衛需要で下支え" },
+    sp500:   { score: 1, reason: "グローバル景気連動" },
+    oil:     { score: 1, reason: "エネルギー事業（ガスタービン等）に追い風" },
+    gold:    { score: 1, reason: "地政学リスク上昇で防衛関連に資金流入" },
+  },
+  "7012": { // 川崎重工 - 防衛・航空・二輪
+    usdjpy:  { score: 2, reason: "円安で海外売上増（バイク・航空）" },
+    us10y:   { score: 0, reason: "防衛需要は金利非感応" },
+    nikkei:  { score: 1, reason: "景気連動" },
+    sp500:   { score: 1, reason: "グローバル景気連動" },
+    oil:     { score: -1, reason: "航空・輸送コスト増" },
+    gold:    { score: 1, reason: "地政学リスク上昇で防衛関連に資金流入" },
+  },
 };
 
 export function computeMacroScores(
@@ -135,6 +175,11 @@ export function computeMacroScores(
     "6098": "リクルートHD",
     "5401": "日本製鉄",
     "8306": "三菱UFJ FG",
+    "9984": "ソフトバンクG",
+    "285A": "キオクシアHD",
+    "6857": "アドバンテスト",
+    "7011": "三菱重工業",
+    "7012": "川崎重工業",
   };
 
   return stockCodes.map((code) => {
