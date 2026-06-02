@@ -58,17 +58,10 @@ export async function fetchStockQuote(code: string): Promise<StockQuote | null> 
     const change = price - prevClose;
     const changePct = prevClose ? (change / prevClose) * 100 : 0;
 
-    // PERのフォールバック計算
-    let per = quote.trailingPE ?? null;
-    // 異常値チェック: PERが500以上または0以下の場合、自前計算にフォールバック
-    if (per === null || per > 500 || per <= 0) {
-      const epsVal = quote.epsTrailingTwelveMonths ?? null;
-      if (epsVal && epsVal > 0 && price > 0) {
-        per = Math.round((price / epsVal) * 10) / 10;
-      } else {
-        per = null;
-      }
-    }
+    const epsVal = quote.epsTrailingTwelveMonths ?? null;
+    const per = epsVal && epsVal > 0 && price > 0
+      ? Math.round((price / epsVal) * 10) / 10
+      : null;
 
     return {
       code,
