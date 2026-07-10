@@ -6,10 +6,12 @@ import {
   ResponsiveContainer, ReferenceLine, Bar, Cell,
   ComposedChart, BarChart,
 } from "recharts";
+import MarketOverview, { OverviewStock } from "@/components/MarketOverview";
+import { CandleShape } from "@/components/Candle";
 
 // --- Types ---
 interface StockQuote { code:string; name:string; nameEn:string; sector:string; price:number; prevClose:number; change:number; changePct:number; open:number; high:number; low:number; volume:number; marketCap:number; per:number|null; perIsForward?:boolean; pbr:number|null; dividendYield:number|null; eps:number|null; epsForecast?:number|null; fiftyTwoWeekHigh:number|null; fiftyTwoWeekLow:number|null; }
-interface ChartPoint { date:string; price:number; volume:number; ma5:number|null; ma25:number|null; ma75:number|null; bbUpper2:number|null; bbUpper1:number|null; bbMid:number|null; bbLower1:number|null; bbLower2:number|null; rsi:number|null; macd:number|null; macdSignal:number|null; macdHist:number|null; }
+interface ChartPoint { date:string; price:number; open:number; high:number; low:number; volume:number; hl?:[number,number]; ma5:number|null; ma25:number|null; ma75:number|null; bbUpper2:number|null; bbUpper1:number|null; bbMid:number|null; bbLower1:number|null; bbLower2:number|null; rsi:number|null; macd:number|null; macdSignal:number|null; macdHist:number|null; }
 interface TargetRange { label:string; period:string; low:number; mid:number; high:number; currentPrice:number; positionPct:number; }
 interface Indicators { rsi:number|null; rsiSignal:string; macd:number|null; macdSignal:number|null; macdHistogram:number|null; macdTrend:string; maSignal?:string; bbPct?:number|null; }
 interface MacroIndicator { id:string; name:string; nameJa:string; value:number; prevValue:number; change:number; changePct:number; changePct5d?:number; unit:string; direction:"up"|"down"|"flat"; trend5d?:"up"|"down"|"flat"; }
@@ -32,9 +34,11 @@ const Card = ({children,style,...p}:{children:React.ReactNode;style?:React.CSSPr
 // --- Tooltips ---
 function PriceTip({active,payload,label}:any){
   if(!active||!payload?.length)return null;const d=payload[0]?.payload;
+  const up=d?.price>=d?.open;
   return(<div className="mono" style={{background:"#fff",border:"1px solid var(--border)",borderRadius:8,padding:"8px 12px",fontSize:11,boxShadow:"0 4px 12px rgba(0,0,0,0.08)"}}>
     <div style={{color:"var(--text-muted)",marginBottom:3}}>{label}</div>
-    <div style={{color:"var(--text-primary)",fontWeight:700}}>¥{d?.price?.toLocaleString()}</div>
+    <div style={{color:up?"var(--red)":"var(--green)",fontWeight:700}}>終値 ¥{d?.price?.toLocaleString()}</div>
+    {d?.open!=null&&<div style={{color:"var(--text-secondary)",fontSize:10}}>始 ¥{d.open.toLocaleString()} / 高 ¥{d.high?.toLocaleString()} / 安 ¥{d.low?.toLocaleString()}</div>}
     {d?.ma5&&<div style={{color:"var(--amber)",fontSize:10}}>MA5: ¥{d.ma5.toLocaleString()}</div>}
     {d?.ma25&&<div style={{color:"var(--red)",fontSize:10}}>MA25: ¥{d.ma25.toLocaleString()}</div>}
     {d?.ma75&&<div style={{color:"var(--green)",fontSize:10}}>MA75: ¥{d.ma75.toLocaleString()}</div>}
@@ -162,10 +166,14 @@ function computeIntegratedForecast(
 // === Main ===
 export default function Dashboard(){
   const mobile=useIsMobile();
+  const[view,setView]=useState<"market"|"stock">("market");
+  const[ovStocks,setOvStocks]=useState<OverviewStock[]>([]);
+  const[ovRelative,setOvRelative]=useState<Record<string,string|number>[]>([]);
   const[quotes,setQuotes]=useState<StockQuote[]>([]);
   const[sel,setSel]=useState("6098");
   const[chart,setChart]=useState<ChartPoint[]>([]);
   const[range,setRange]=useState("3M");
+  const[chartType,setChartType]=useState<"line"|"candle">("candle");
   const[loading,setLoading]=useState(true);
   const[cLoading,setCLoading]=useState(false);
   const[updated,setUpdated]=useState("");
@@ -186,12 +194,15 @@ export default function Dashboard(){
 
   useEffect(()=>{(async()=>{try{const r=await fetch("/api/stocks");if(!r.ok)throw new Error();const d=await r.json();setQuotes(d.quotes);setUpdated(d.updatedAt);setErr(null);}catch{setErr("データの取得に失敗しました");}finally{setLoading(false);}})();const iv=setInterval(async()=>{try{const r=await fetch("/api/stocks");if(r.ok){const d=await r.json();setQuotes(d.quotes);setUpdated(d.updatedAt);}}catch{}},300000);return()=>clearInterval(iv);},[]);
   useEffect(()=>{(async()=>{try{const r=await fetch("/api/macro");if(!r.ok)return;const d=await r.json();setMacroIndicators(d.indicators||[]);setMacroScores(d.scores||[]);}catch(e){console.error(e);}})();},[]);
-  const loadH=useCallback(async(code:string,rng:string)=>{setCLoading(true);try{const r=await fetch(`/api/stocks/${code}?period=${PM[rng]||"3mo"}`);if(r.ok){const d=await r.json();setChart(d.history);setTargets(d.targetRanges||[]);setIndicators(d.indicators||null);setFinancials(d.financials||[]);}}catch{setChart([]);setTargets([]);setIndicators(null);setFinancials([]);}finally{setCLoading(false);}},[]);
+  useEffect(()=>{(async()=>{try{const r=await fetch("/api/overview");if(!r.ok)return;const d=await r.json();setOvStocks(d.stocks||[]);setOvRelative(d.relative||[]);}catch(e){console.error(e);}})();},[]);
+  const loadH=useCallback(async(code:string,rng:string)=>{setCLoading(true);try{const r=await fetch(`/api/stocks/${code}?period=${PM[rng]||"3mo"}`);if(r.ok){const d=await r.json();setChart((d.history||[]).map((h:any)=>({...h,hl:[h.low,h.high]})));setTargets(d.targetRanges||[]);setIndicators(d.indicators||null);setFinancials(d.financials||[]);}}catch{setChart([]);setTargets([]);setIndicators(null);setFinancials([]);}finally{setCLoading(false);}},[]);
   useEffect(()=>{loadH(sel,range);},[sel,range,loadH]);
 
   const stk=quotes.find(q=>q.code===sel);
   const isUp=stk?stk.change>=0:true;
-  const prices=chart.map(d=>d.price).filter(Boolean);
+  const prices=chartType==="candle"
+    ?[...chart.map(d=>d.low).filter(Boolean),...chart.map(d=>d.high).filter(Boolean)]
+    :chart.map(d=>d.price).filter(Boolean);
   const allBB=showBB?[...chart.map(d=>d.bbUpper2).filter(Boolean) as number[],...chart.map(d=>d.bbLower2).filter(Boolean) as number[]]:[];
   const allV=[...prices,...allBB];
   const pMin=allV.length?Math.min(...allV)*0.995:0;
@@ -216,14 +227,19 @@ export default function Dashboard(){
       {/* Header */}
       <header style={{padding:mobile?"10px 14px":"12px 24px",background:"#fff",borderBottom:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:50,boxShadow:"0 1px 2px rgba(0,0,0,0.03)"}}>
         <div style={{display:"flex",alignItems:"center",gap:mobile?10:16}}>
-          {mobile&&<button onClick={()=>setSidebarOpen(!sidebarOpen)} style={{background:"none",border:"none",color:"var(--text-muted)",fontSize:20,cursor:"pointer",padding:0,lineHeight:1}}>☰</button>}
+          {mobile&&view==="stock"&&<button onClick={()=>setSidebarOpen(!sidebarOpen)} style={{background:"none",border:"none",color:"var(--text-muted)",fontSize:20,cursor:"pointer",padding:0,lineHeight:1}}>☰</button>}
           <span className="sans" style={{fontSize:mobile?15:17,fontWeight:700,color:"var(--accent)",letterSpacing:0.5}}>KABU<span style={{color:"var(--amber)"}}>FORECAST</span></span>
+          <div style={{display:"flex",gap:2,background:"var(--bg-card-alt)",borderRadius:8,padding:2,border:"1px solid var(--border-light)"}}>
+            {([{k:"market",l:"マーケット"},{k:"stock",l:"銘柄分析"}] as const).map(t=>(
+              <button key={t.k} onClick={()=>setView(t.k)} className="sans" style={{padding:mobile?"5px 10px":"5px 14px",fontSize:mobile?11:12,fontWeight:600,border:"none",borderRadius:6,background:view===t.k?"#fff":"transparent",color:view===t.k?"var(--accent)":"var(--text-muted)",cursor:"pointer",boxShadow:view===t.k?"0 1px 3px rgba(0,0,0,0.08)":"none",transition:"all 0.15s"}}>{t.l}</button>
+            ))}
+          </div>
         </div>
-        {updated&&<span className="mono" style={{fontSize:10,color:"var(--text-dim)"}}>更新 {new Date(updated).toLocaleTimeString("ja-JP")}</span>}
+        {updated&&!mobile&&<span className="mono" style={{fontSize:10,color:"var(--text-dim)"}}>更新 {new Date(updated).toLocaleTimeString("ja-JP")}</span>}
       </header>
 
       {/* Mobile stock strip */}
-      {mobile&&(
+      {mobile&&view==="stock"&&(
         <div style={{display:"flex",overflowX:"auto",gap:8,padding:"10px 12px",background:"#fff",borderBottom:"1px solid var(--border)",WebkitOverflowScrolling:"touch"}}>
           {quotes.map(q=>{const up=q.change>=0;const s=sel===q.code;const ms=macroScores.find(m=>m.code===q.code);
             return(<button key={q.code} onClick={()=>setSel(q.code)} style={{flexShrink:0,padding:"8px 14px",borderRadius:10,border:s?"2px solid var(--accent)":"1px solid var(--border)",background:s?"#F0F4FA":"#fff",cursor:"pointer",minWidth:115,textAlign:"left",transition:"all 0.15s"}}>
@@ -261,7 +277,7 @@ export default function Dashboard(){
 
       <div style={{display:"flex",minHeight:"calc(100vh - 53px)"}}>
         {/* Desktop sidebar */}
-        {!mobile&&(
+        {!mobile&&view==="stock"&&(
           <aside style={{width:280,background:"#fff",borderRight:"1px solid var(--border)",flexShrink:0,overflowY:"auto"}}>
             <div style={{padding:"14px 16px",borderBottom:"1px solid var(--border)"}}>
               <span className="sans" style={{fontSize:11,fontWeight:600,color:"var(--text-muted)",letterSpacing:1}}>ウォッチリスト</span>
@@ -283,7 +299,17 @@ export default function Dashboard(){
 
         {/* Main */}
         <main style={{flex:1,padding:pad,overflowY:"auto",overflowX:"hidden",maxWidth:"100%"}} className="fade-in">
-          {stk?(<>
+          {view==="market"?(
+            ovStocks.length>0?(
+              <MarketOverview stocks={ovStocks} relative={ovRelative} macroIndicators={macroIndicators} macroScores={macroScores} mobile={mobile}
+                onSelect={(c)=>{setSel(c);setView("stock");}}/>
+            ):(
+              <div style={{display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,marginTop:100}}>
+                <div className="pulse-dot" style={{width:8,height:8,borderRadius:"50%",background:"var(--accent)"}}/>
+                <span style={{fontSize:12,color:"var(--text-muted)"}}>マーケットデータを集計中...</span>
+              </div>
+            )
+          ):stk?(<>
             {/* Stock Header */}
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:mobile?14:20,flexWrap:"wrap",gap:8}}>
               <div>
@@ -302,12 +328,32 @@ export default function Dashboard(){
               </div>
             </div>
 
+            {/* Signals for selected stock */}
+            {(()=>{const sig=ovStocks.find(o=>o.code===sel)?.signals??[];return sig.length>0&&(
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12}}>
+                {sig.map((g,i)=>(
+                  <span key={i} title={g.detail} style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:10,fontWeight:600,padding:"4px 10px",borderRadius:6,
+                    background:g.direction==="bull"?"var(--red-bg)":g.direction==="bear"?"var(--green-bg)":"var(--amber-bg)",
+                    color:g.direction==="bull"?"var(--red)":g.direction==="bear"?"var(--green)":"var(--amber)",
+                    border:`1px solid ${g.direction==="bull"?"var(--red)":g.direction==="bear"?"var(--green)":"var(--amber)"}`}}>
+                    {g.direction==="bull"?"▲":g.direction==="bear"?"▼":"◆"} {g.label}
+                    {!mobile&&<span style={{fontWeight:400,opacity:0.8}}>{g.detail}</span>}
+                  </span>
+                ))}
+              </div>
+            );})()}
+
             {/* Chart */}
             <Card style={{padding:mobile?"14px 6px 8px 0":"20px 16px 10px 0",marginBottom:14}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:mobile?"0 10px":"0 16px",marginBottom:8}}>
                 <span className="sans" style={{fontSize:13,fontWeight:600,color:"var(--accent)"}}>株価チャート</span>
                 <div style={{display:"flex",gap:6,alignItems:"center"}}>
                   {cLoading&&<div className="pulse-dot" style={{width:6,height:6,borderRadius:"50%",background:"var(--accent)"}}/>}
+                  <div style={{display:"flex",gap:2,background:"var(--bg-card-alt)",borderRadius:6,padding:2,border:"1px solid var(--border-light)"}}>
+                    {([{k:"candle",l:"ローソク"},{k:"line",l:"ライン"}] as const).map(t=>(
+                      <button key={t.k} onClick={()=>setChartType(t.k)} className="mono" style={{fontSize:10,padding:"3px 9px",borderRadius:4,border:"none",cursor:"pointer",background:chartType===t.k?"#fff":"transparent",color:chartType===t.k?"var(--accent)":"var(--text-muted)",fontWeight:600,boxShadow:chartType===t.k?"0 1px 2px rgba(0,0,0,0.06)":"none"}}>{t.l}</button>
+                    ))}
+                  </div>
                   <button onClick={()=>setShowBB(!showBB)} className="mono" style={{fontSize:10,padding:"3px 10px",borderRadius:5,border:"1px solid",cursor:"pointer",borderColor:showBB?"var(--purple)":"var(--border)",background:showBB?"var(--purple-bg)":"transparent",color:showBB?"var(--purple)":"var(--text-muted)",fontWeight:500}}>BB</button>
                 </div>
               </div>
@@ -316,22 +362,38 @@ export default function Dashboard(){
                 <span style={{display:"inline-flex",alignItems:"center",gap:4,color:"var(--text-muted)"}}><span style={{width:12,height:2,background:"var(--red)",display:"inline-block"}}/>MA25（中期）</span>
                 <span style={{display:"inline-flex",alignItems:"center",gap:4,color:"var(--text-muted)"}}><span style={{width:12,height:2,background:"var(--green)",display:"inline-block"}}/>MA75（長期）</span>
               </div>
-              <ResponsiveContainer width="100%" height={mobile?200:280}>
-                <AreaChart data={chart} margin={{top:5,right:mobile?4:10,left:mobile?0:10,bottom:5}}>
-                  <defs>
-                    <linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={isUp?"#E11D48":"#059669"} stopOpacity={0.12}/><stop offset="100%" stopColor={isUp?"#E11D48":"#059669"} stopOpacity={0}/></linearGradient>
-                  </defs>
-                  <XAxis dataKey="date" tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={{stroke:"var(--border-light)"}} tickLine={false} interval={xInterval}/>
-                  <YAxis domain={[pMin,pMax]} tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={false} tickLine={false} tickFormatter={(v:number)=>`¥${Math.round(v).toLocaleString()}`} width={mobile?55:78}/>
-                  <Tooltip content={<PriceTip/>}/>
-                  <ReferenceLine y={stk.prevClose} stroke="#D4D4D4" strokeDasharray="3 3"/>
-                  {showBB&&<><Line type="monotone" dataKey="bbUpper2" stroke="var(--purple)" strokeWidth={0.5} dot={false} strokeOpacity={0.4}/><Line type="monotone" dataKey="bbLower2" stroke="var(--purple)" strokeWidth={0.5} dot={false} strokeOpacity={0.4}/></>}
-                  <Area type="monotone" dataKey="price" stroke={isUp?"var(--red)":"var(--green)"} strokeWidth={2} fill="url(#pg)" dot={false} activeDot={{r:4,fill:"var(--accent)",stroke:"#fff",strokeWidth:2}}/>
-                  <Line type="monotone" dataKey="ma5" stroke="var(--amber)" strokeWidth={1} dot={false} connectNulls={false}/>
-                  <Line type="monotone" dataKey="ma25" stroke="var(--red)" strokeWidth={1} dot={false} connectNulls={false}/>
-                  <Line type="monotone" dataKey="ma75" stroke="var(--green)" strokeWidth={1} dot={false} connectNulls={false}/>
-                </AreaChart>
-              </ResponsiveContainer>
+              {chartType==="candle"?(
+                <ResponsiveContainer width="100%" height={mobile?200:280}>
+                  <ComposedChart data={chart} margin={{top:5,right:mobile?4:10,left:mobile?0:10,bottom:5}}>
+                    <XAxis dataKey="date" tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={{stroke:"var(--border-light)"}} tickLine={false} interval={xInterval}/>
+                    <YAxis domain={[pMin,pMax]} tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={false} tickLine={false} tickFormatter={(v:number)=>`¥${Math.round(v).toLocaleString()}`} width={mobile?55:78}/>
+                    <Tooltip content={<PriceTip/>}/>
+                    <ReferenceLine y={stk.prevClose} stroke="#D4D4D4" strokeDasharray="3 3"/>
+                    {showBB&&<><Line type="monotone" dataKey="bbUpper2" stroke="var(--purple)" strokeWidth={0.5} dot={false} strokeOpacity={0.4}/><Line type="monotone" dataKey="bbLower2" stroke="var(--purple)" strokeWidth={0.5} dot={false} strokeOpacity={0.4}/></>}
+                    <Bar dataKey="hl" shape={<CandleShape/>} isAnimationActive={false} maxBarSize={9}/>
+                    <Line type="monotone" dataKey="ma5" stroke="var(--amber)" strokeWidth={1} dot={false} connectNulls={false}/>
+                    <Line type="monotone" dataKey="ma25" stroke="var(--red)" strokeWidth={1} dot={false} connectNulls={false}/>
+                    <Line type="monotone" dataKey="ma75" stroke="var(--green)" strokeWidth={1} dot={false} connectNulls={false}/>
+                  </ComposedChart>
+                </ResponsiveContainer>
+              ):(
+                <ResponsiveContainer width="100%" height={mobile?200:280}>
+                  <AreaChart data={chart} margin={{top:5,right:mobile?4:10,left:mobile?0:10,bottom:5}}>
+                    <defs>
+                      <linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={isUp?"#E11D48":"#059669"} stopOpacity={0.12}/><stop offset="100%" stopColor={isUp?"#E11D48":"#059669"} stopOpacity={0}/></linearGradient>
+                    </defs>
+                    <XAxis dataKey="date" tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={{stroke:"var(--border-light)"}} tickLine={false} interval={xInterval}/>
+                    <YAxis domain={[pMin,pMax]} tick={{fontSize:mobile?8:10,fill:"#666",fontFamily:"DM Mono"}} axisLine={false} tickLine={false} tickFormatter={(v:number)=>`¥${Math.round(v).toLocaleString()}`} width={mobile?55:78}/>
+                    <Tooltip content={<PriceTip/>}/>
+                    <ReferenceLine y={stk.prevClose} stroke="#D4D4D4" strokeDasharray="3 3"/>
+                    {showBB&&<><Line type="monotone" dataKey="bbUpper2" stroke="var(--purple)" strokeWidth={0.5} dot={false} strokeOpacity={0.4}/><Line type="monotone" dataKey="bbLower2" stroke="var(--purple)" strokeWidth={0.5} dot={false} strokeOpacity={0.4}/></>}
+                    <Area type="monotone" dataKey="price" stroke={isUp?"var(--red)":"var(--green)"} strokeWidth={2} fill="url(#pg)" dot={false} activeDot={{r:4,fill:"var(--accent)",stroke:"#fff",strokeWidth:2}}/>
+                    <Line type="monotone" dataKey="ma5" stroke="var(--amber)" strokeWidth={1} dot={false} connectNulls={false}/>
+                    <Line type="monotone" dataKey="ma25" stroke="var(--red)" strokeWidth={1} dot={false} connectNulls={false}/>
+                    <Line type="monotone" dataKey="ma75" stroke="var(--green)" strokeWidth={1} dot={false} connectNulls={false}/>
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
               <ResponsiveContainer width="100%" height={mobile?60:80}>
                 <BarChart data={chart} margin={{top:2,right:mobile?4:10,left:mobile?0:10,bottom:0}}>
                   <XAxis dataKey="date" hide/>
