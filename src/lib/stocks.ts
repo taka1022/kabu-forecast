@@ -34,9 +34,11 @@ export interface StockQuote {
   volume: number;
   marketCap: number;
   per: number | null;
+  perIsForward: boolean; // true: 今期予想EPSベース（日本の慣行）, false: 実績TTMベース
   pbr: number | null;
   dividendYield: number | null;
-  eps: number | null;
+  eps: number | null; // 実績TTM EPS
+  epsForecast: number | null; // 今期予想EPS（アナリストコンセンサス）
   fiftyTwoWeekHigh: number | null;
   fiftyTwoWeekLow: number | null;
 }
@@ -63,9 +65,36 @@ export async function fetchStockQuote(code: string): Promise<StockQuote | null> 
     const change = price - prevClose;
     const changePct = prevClose ? (change / prevClose) * 100 : 0;
 
-    let per = quote.trailingPE ?? null;
-    if (per !== null && (per > 500 || per <= 0)) {
-      per = null;
+    // 日本の慣行に合わせ、PERは今期予想EPS（アナリストコンセンサス）ベースを優先。
+    // earningsTrendの"0y"が今期(進行中の会計年度)の予想EPS。
+    // ※quote.epsForwardは日本株では信頼できない値を返すため使わない
+    let epsForecast: number | null = null;
+    try {
+      const et: any = await yf.quoteSummary(ticker, {
+        modules: ["earningsTrend"],
+      });
+      const y0 = (et?.earningsTrend?.trend ?? []).find(
+        (t: any) => t.period === "0y"
+      );
+      const est = y0?.earningsEstimate?.avg;
+      const analysts = y0?.earningsEstimate?.numberOfAnalysts ?? 0;
+      if (est && est > 0 && analysts >= 3) {
+        epsForecast = Math.round(est * 100) / 100;
+      }
+    } catch {
+      // earningsTrendが取れない場合は実績PERにフォールバック
+    }
+
+    let per: number | null = null;
+    let perIsForward = false;
+    if (epsForecast && price > 0) {
+      per = Math.round((price / epsForecast) * 10) / 10;
+      perIsForward = true;
+    } else {
+      per = quote.trailingPE ?? null;
+      if (per !== null && (per > 500 || per <= 0)) {
+        per = null;
+      }
     }
     const eps = quote.epsTrailingTwelveMonths ?? null;
     if (per === null && eps && eps > 0 && price > 0) {
@@ -87,11 +116,13 @@ export async function fetchStockQuote(code: string): Promise<StockQuote | null> 
       volume: quote.regularMarketVolume ?? 0,
       marketCap: quote.marketCap ?? 0,
       per,
+      perIsForward,
       pbr: quote.priceToBook ?? null,
       dividendYield: quote.dividendYield
         ? Math.round(quote.dividendYield * 100) / 100
         : null,
       eps,
+      epsForecast,
       fiftyTwoWeekHigh: quote.fiftyTwoWeekHigh ?? null,
       fiftyTwoWeekLow: quote.fiftyTwoWeekLow ?? null,
     };

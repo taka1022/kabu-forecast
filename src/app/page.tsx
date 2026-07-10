@@ -8,7 +8,7 @@ import {
 } from "recharts";
 
 // --- Types ---
-interface StockQuote { code:string; name:string; nameEn:string; sector:string; price:number; prevClose:number; change:number; changePct:number; open:number; high:number; low:number; volume:number; marketCap:number; per:number|null; pbr:number|null; dividendYield:number|null; eps:number|null; fiftyTwoWeekHigh:number|null; fiftyTwoWeekLow:number|null; }
+interface StockQuote { code:string; name:string; nameEn:string; sector:string; price:number; prevClose:number; change:number; changePct:number; open:number; high:number; low:number; volume:number; marketCap:number; per:number|null; perIsForward?:boolean; pbr:number|null; dividendYield:number|null; eps:number|null; epsForecast?:number|null; fiftyTwoWeekHigh:number|null; fiftyTwoWeekLow:number|null; }
 interface ChartPoint { date:string; price:number; volume:number; ma5:number|null; ma25:number|null; ma75:number|null; bbUpper2:number|null; bbUpper1:number|null; bbMid:number|null; bbLower1:number|null; bbLower2:number|null; rsi:number|null; macd:number|null; macdSignal:number|null; macdHist:number|null; }
 interface TargetRange { label:string; period:string; low:number; mid:number; high:number; currentPrice:number; positionPct:number; }
 interface Indicators { rsi:number|null; rsiSignal:string; macd:number|null; macdSignal:number|null; macdHistogram:number|null; macdTrend:string; maSignal?:string; bbPct?:number|null; }
@@ -410,7 +410,7 @@ export default function Dashboard(){
                   <span style={{fontSize:10,padding:"2px 8px",borderRadius:4,background:indicators.macdTrend==="上昇トレンド"?"var(--red-bg)":indicators.macdTrend==="下降トレンド"?"var(--green-bg)":"var(--bg-card-alt)",color:indicators.macdTrend==="上昇トレンド"?"var(--red)":indicators.macdTrend==="下降トレンド"?"var(--green)":"var(--text-muted)",fontWeight:500}}>{indicators.macdTrend}</span>
                 </Card>
                 <Card style={{padding:"12px 14px",borderLeft:"3px solid var(--amber)"}}>
-                  <div style={{fontSize:10,color:"var(--text-muted)",marginBottom:3,fontWeight:500}}>PER</div>
+                  <div style={{fontSize:10,color:"var(--text-muted)",marginBottom:3,fontWeight:500}}>{stk.perIsForward?"予想PER":"PER"}</div>
                   <div className="mono" style={{fontSize:18,fontWeight:700}}>{stk.per?.toFixed(1)??"—"}<span style={{fontSize:11,color:"var(--text-muted)",marginLeft:2}}>倍</span></div>
                 </Card>
                 {currentMS?(
@@ -553,10 +553,10 @@ export default function Dashboard(){
               <div style={{display:"grid",gridTemplateColumns:mobile?"repeat(3,1fr)":"repeat(6,1fr)",padding:"8px 0"}}>
                 {[
                   {l:"時価総額",v:fmtCap(stk.marketCap),h:false},
-                  {l:"PER",v:stk.per?.toFixed(1)??"—",u:"倍",h:(stk.per??99)<15},
+                  {l:stk.perIsForward?"予想PER":"PER",v:stk.per?.toFixed(1)??"—",u:"倍",h:(stk.per??99)<15},
                   {l:"PBR",v:stk.pbr?.toFixed(2)??"—",u:"倍",h:(stk.pbr??99)<1},
                   {l:"配当利回",v:stk.dividendYield?.toFixed(2)??"—",u:"%",h:(stk.dividendYield??0)>3},
-                  {l:"EPS",v:stk.eps?`¥${stk.eps.toFixed(1)}`:"—",h:false},
+                  {l:stk.epsForecast?"予想EPS":"EPS",v:stk.epsForecast?`¥${stk.epsForecast.toFixed(1)}`:stk.eps?`¥${stk.eps.toFixed(1)}`:"—",h:false},
                   {l:"52W高値",v:stk.fiftyTwoWeekHigh?`¥${stk.fiftyTwoWeekHigh.toLocaleString()}`:"—",h:false},
                 ].map(m=>(
                   <div key={m.l} style={{textAlign:"center",padding:mobile?"8px 4px":"12px 6px"}}>

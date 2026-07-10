@@ -70,11 +70,12 @@ export async function GET(
     const days = DISPLAY_DAYS[period] ?? 64;
     const chartData = chartAll.slice(-days);
 
+    // PERが予想ベースの場合は予想EPSを渡して整合を取る
     const targetRanges = computeTargetRanges(
       fullHistory,
       quote.price,
       quote.per,
-      quote.eps
+      quote.perIsForward ? quote.epsForecast : quote.eps
     );
 
     // Latest indicator summary (always from full 1y history)

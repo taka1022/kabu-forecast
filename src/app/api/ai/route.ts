@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
 【市場データ】
 - 現在株価: ¥${q.price?.toLocaleString()}（前日比 ${q.changePct > 0 ? "+" : ""}${q.changePct}%）
 - 52週レンジ: ¥${q.fiftyTwoWeekLow?.toLocaleString() ?? "不明"} 〜 ¥${q.fiftyTwoWeekHigh?.toLocaleString() ?? "不明"}
-- PER: ${q.per ?? "不明"}倍 / PBR: ${q.pbr?.toFixed?.(2) ?? "不明"}倍 / 配当利回り: ${q.dividendYield ?? "不明"}%
+- ${q.perIsForward ? "予想PER（今期コンセンサス）" : "PER（実績）"}: ${q.per ?? "不明"}倍 / PBR: ${q.pbr?.toFixed?.(2) ?? "不明"}倍 / 配当利回り: ${q.dividendYield ?? "不明"}%
 - 時価総額: ${fmtNum(q.marketCap)}
 
 【テクニカル（1年データから算出）】
