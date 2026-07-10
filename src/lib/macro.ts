@@ -1,6 +1,6 @@
 import YahooFinance from "yahoo-finance2";
 
-const yf = new YahooFinance();
+const yf = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 // --- Macro Indicators via Yahoo Finance ---
 export interface MacroIndicator {
@@ -11,8 +11,10 @@ export interface MacroIndicator {
   prevValue: number;
   change: number;
   changePct: number;
+  changePct5d: number; // 5営業日変化率（スコアリングに使用）
   unit: string;
-  direction: "up" | "down" | "flat"; // recent trend
+  direction: "up" | "down" | "flat"; // 前日比の方向（表示用）
+  trend5d: "up" | "down" | "flat"; // 5日トレンド（スコアリング用）
 }
 
 const MACRO_TICKERS: {
@@ -31,17 +33,42 @@ const MACRO_TICKERS: {
 ];
 
 export async function fetchMacroIndicators(): Promise<MacroIndicator[]> {
-  const results: MacroIndicator[] = [];
-
-  for (const m of MACRO_TICKERS) {
-    try {
+  const settled = await Promise.allSettled(
+    MACRO_TICKERS.map(async (m) => {
       const q: any = await yf.quote(m.ticker);
       const price = q.regularMarketPrice ?? 0;
       const prev = q.regularMarketPreviousClose ?? price;
       const change = Math.round((price - prev) * 100) / 100;
       const changePct = prev ? Math.round(((price - prev) / prev) * 10000) / 100 : 0;
 
-      results.push({
+      // 5営業日トレンド: 日次の方向はノイズが大きいため、
+      // スコアリングには直近5営業日の変化率を使う
+      let changePct5d = changePct;
+      try {
+        const start = new Date();
+        start.setDate(start.getDate() - 14);
+        const chart: any = await yf.chart(m.ticker, {
+          period1: start,
+          period2: new Date(),
+          interval: "1d",
+        });
+        const closes: number[] = (chart?.quotes ?? [])
+          .map((r: any) => r.close)
+          .filter((c: any) => c != null);
+        if (closes.length >= 6) {
+          const base = closes[closes.length - 6];
+          const last = closes[closes.length - 1];
+          if (base) changePct5d = Math.round(((last - base) / base) * 10000) / 100;
+        }
+      } catch {
+        // chartが取れない場合は前日比で代用
+      }
+
+      // ±0.15%未満は「横這い」とみなしノイズを除外
+      const trend5d: MacroIndicator["trend5d"] =
+        changePct5d > 0.15 ? "up" : changePct5d < -0.15 ? "down" : "flat";
+
+      return {
         id: m.id,
         name: m.name,
         nameJa: m.nameJa,
@@ -49,15 +76,19 @@ export async function fetchMacroIndicators(): Promise<MacroIndicator[]> {
         prevValue: Math.round(prev * 100) / 100,
         change,
         changePct,
+        changePct5d,
         unit: m.unit,
         direction: change > 0 ? "up" : change < 0 ? "down" : "flat",
-      });
-    } catch (err) {
-      console.error(`Failed to fetch macro ${m.id}:`, err);
-    }
-  }
+        trend5d,
+      } as MacroIndicator;
+    })
+  );
 
-  return results;
+  return settled
+    .filter(
+      (r): r is PromiseFulfilledResult<MacroIndicator> => r.status === "fulfilled"
+    )
+    .map((r) => r.value);
 }
 
 // --- Sensitivity Matrix ---
@@ -165,6 +196,16 @@ const SENSITIVITY_MATRIX: Record<string, Record<string, { score: number; reason:
   },
 };
 
+// 各因子の「典型的な5営業日の変化率(%)」— これを1.0倍の基準とする
+const TYPICAL_5D_MOVE: Record<string, number> = {
+  usdjpy: 1.0,
+  us10y: 3.0,
+  nikkei: 2.0,
+  sp500: 2.0,
+  oil: 4.0,
+  gold: 2.0,
+};
+
 export function computeMacroScores(
   indicators: MacroIndicator[]
 ): StockMacroScore[] {
@@ -192,15 +233,17 @@ export function computeMacroScores(
       const entry = matrix[indicator.id];
       if (!entry) continue;
 
-      // Factor direction contribution:
-      // If indicator went UP and sensitivity is positive → good
-      // If indicator went UP and sensitivity is negative → bad
-      const directionMultiplier =
-        indicator.direction === "up" ? 1 : indicator.direction === "down" ? -1 : 0;
+      // 5営業日の変化率を典型変動幅で正規化し、±1.5倍にクランプ。
+      // 方向だけでなく「どれだけ動いたか」をスコアに反映する
+      const typical = TYPICAL_5D_MOVE[indicator.id] ?? 2.0;
+      const multiplier = Math.max(
+        -1.5,
+        Math.min(1.5, indicator.changePct5d / typical)
+      );
 
-      const contribution = entry.score * directionMultiplier;
+      const contribution = Math.round(entry.score * multiplier * 10) / 10;
       totalScore += contribution;
-      maxPossible += Math.abs(entry.score);
+      maxPossible += Math.abs(entry.score) * 1.5;
 
       factors.push({
         factorId: indicator.id,

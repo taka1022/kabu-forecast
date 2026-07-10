@@ -11,8 +11,8 @@ import {
 interface StockQuote { code:string; name:string; nameEn:string; sector:string; price:number; prevClose:number; change:number; changePct:number; open:number; high:number; low:number; volume:number; marketCap:number; per:number|null; pbr:number|null; dividendYield:number|null; eps:number|null; fiftyTwoWeekHigh:number|null; fiftyTwoWeekLow:number|null; }
 interface ChartPoint { date:string; price:number; volume:number; ma5:number|null; ma25:number|null; ma75:number|null; bbUpper2:number|null; bbUpper1:number|null; bbMid:number|null; bbLower1:number|null; bbLower2:number|null; rsi:number|null; macd:number|null; macdSignal:number|null; macdHist:number|null; }
 interface TargetRange { label:string; period:string; low:number; mid:number; high:number; currentPrice:number; positionPct:number; }
-interface Indicators { rsi:number|null; rsiSignal:string; macd:number|null; macdSignal:number|null; macdHistogram:number|null; macdTrend:string; }
-interface MacroIndicator { id:string; name:string; nameJa:string; value:number; prevValue:number; change:number; changePct:number; unit:string; direction:"up"|"down"|"flat"; }
+interface Indicators { rsi:number|null; rsiSignal:string; macd:number|null; macdSignal:number|null; macdHistogram:number|null; macdTrend:string; maSignal?:string; bbPct?:number|null; }
+interface MacroIndicator { id:string; name:string; nameJa:string; value:number; prevValue:number; change:number; changePct:number; changePct5d?:number; unit:string; direction:"up"|"down"|"flat"; trend5d?:"up"|"down"|"flat"; }
 interface SensitivityEntry { factorId:string; factorName:string; score:number; reason:string; }
 interface StockMacroScore { code:string; name:string; totalScore:number; maxPossible:number; normalizedScore:number; signal:string; factors:SensitivityEntry[]; }
 interface FinancialPeriod { date:string; fiscalYear:string; revenue:number|null; operatingIncome:number|null; netIncome:number|null; operatingMargin:number|null; eps:number|null; }
@@ -104,16 +104,16 @@ function computeIntegratedForecast(
   const layers: IntegratedForecast["layers"] = [];
   let validLayers = 0;
 
-  // Layer 1: Technical (RSI + MACD) — weight 35%
-  let techScore = 0;
-  let techDetail = "";
+  // Layer 1: Technical (RSI + MACD + 移動平均配列) — weight 35%
   if (indicators.rsi !== null) {
     // RSI: 30以下 = bullish(+), 70以上 = bearish(-), 50 = neutral
     const rsiScore = indicators.rsi <= 30 ? 80 : indicators.rsi <= 40 ? 40 : indicators.rsi >= 70 ? -80 : indicators.rsi >= 60 ? -40 : 0;
     // MACD trend
     const macdScore = indicators.macdTrend === "上昇トレンド" ? 50 : indicators.macdTrend === "下降トレンド" ? -50 : 0;
-    techScore = Math.round((rsiScore * 0.5 + macdScore * 0.5));
-    techDetail = `RSI ${indicators.rsi.toFixed(0)}(${indicators.rsiSignal}) / MACD ${indicators.macdTrend}`;
+    // 移動平均の配列（パーフェクトオーダー判定）
+    const maScore = indicators.maSignal === "上昇配列" ? 60 : indicators.maSignal === "下降配列" ? -60 : 0;
+    const techScore = Math.round(rsiScore * 0.4 + macdScore * 0.3 + maScore * 0.3);
+    const techDetail = `RSI ${indicators.rsi.toFixed(0)}(${indicators.rsiSignal}) / MACD ${indicators.macdTrend}${indicators.maSignal && indicators.maSignal !== "中立" ? ` / MA ${indicators.maSignal}` : ""}`;
     layers.push({ name: "テクニカル", score: techScore, weight: 35, detail: techDetail, color: "var(--accent)" });
     validLayers++;
   }
@@ -178,7 +178,7 @@ export default function Dashboard(){
   const[sidebarOpen,setSidebarOpen]=useState(false);
   const[financials,setFinancials]=useState<FinancialPeriod[]>([]);
   // AI Analysis state
-  const[aiTab,setAiTab]=useState<"consensus"|"report">("consensus");
+  const[aiTab,setAiTab]=useState<"auto"|"consensus"|"report">("auto");
   const[aiLoading,setAiLoading]=useState(false);
   const[consensusForm,setConsensusForm]=useState({targetPrice:"",rating:"中立",analystCount:"",comment:""});
   const[reportText,setReportText]=useState("");
@@ -507,15 +507,16 @@ export default function Dashboard(){
                   </div>
                 </div>
                 {currentMS.factors.map(f=>{const mi=macroIndicators.find(m=>m.id===f.factorId);
+                  const t5=mi?.trend5d??mi?.direction;
                   return mobile?(
                     <div key={f.factorId} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",borderBottom:"1px solid var(--border-light)"}}>
-                      <div><span style={{fontSize:12,fontWeight:500}}>{f.factorName}</span><span className="mono" style={{fontSize:10,color:mi?.direction==="up"?"var(--red)":mi?.direction==="down"?"var(--green)":"var(--text-dim)",marginLeft:6}}>{mi?.direction==="up"?"▲":mi?.direction==="down"?"▼":"—"}</span></div>
+                      <div><span style={{fontSize:12,fontWeight:500}}>{f.factorName}</span><span className="mono" style={{fontSize:10,color:t5==="up"?"var(--red)":t5==="down"?"var(--green)":"var(--text-dim)",marginLeft:6}}>{t5==="up"?"▲":t5==="down"?"▼":"—"}{mi?.changePct5d!=null&&<span style={{marginLeft:2}}>{mi.changePct5d>0?"+":""}{mi.changePct5d.toFixed(1)}%</span>}</span></div>
                       {f.score!==0?<span className="mono" style={{fontSize:13,fontWeight:700,color:f.score>0?"var(--red)":"var(--green)",padding:"2px 8px",borderRadius:4,background:f.score>0?"var(--red-bg)":"var(--green-bg)"}}>{f.score>0?"+":""}{f.score}</span>:<span className="mono" style={{fontSize:12,color:"var(--text-dim)"}}>0</span>}
                     </div>
                   ):(
-                    <div key={f.factorId} style={{display:"grid",gridTemplateColumns:"100px 80px 1fr 50px",alignItems:"center",padding:"8px 16px",borderBottom:"1px solid var(--border-light)"}}>
+                    <div key={f.factorId} style={{display:"grid",gridTemplateColumns:"100px 110px 1fr 50px",alignItems:"center",padding:"8px 16px",borderBottom:"1px solid var(--border-light)"}}>
                       <span style={{fontSize:12,fontWeight:500}}>{f.factorName}</span>
-                      <span className="mono" style={{fontSize:11,color:mi?.direction==="up"?"var(--red)":mi?.direction==="down"?"var(--green)":"var(--text-dim)"}}>{mi?.direction==="up"?"▲ 上昇":mi?.direction==="down"?"▼ 下落":"— 横這"}</span>
+                      <span className="mono" style={{fontSize:11,color:t5==="up"?"var(--red)":t5==="down"?"var(--green)":"var(--text-dim)"}}>{t5==="up"?"▲":t5==="down"?"▼":"—"} 5日{mi?.changePct5d!=null?` ${mi.changePct5d>0?"+":""}${mi.changePct5d.toFixed(1)}%`:""}</span>
                       <span style={{fontSize:11,color:"var(--text-muted)"}}>{f.reason}</span>
                       <div style={{textAlign:"right"}}>{f.score!==0?<span className="mono" style={{fontSize:12,fontWeight:700,color:f.score>0?"var(--red)":"var(--green)",padding:"2px 8px",borderRadius:4,background:f.score>0?"var(--red-bg)":"var(--green-bg)"}}>{f.score>0?"+":""}{f.score}</span>:<span className="mono" style={{fontSize:12,color:"var(--text-dim)"}}>0</span>}</div>
                     </div>
@@ -614,12 +615,32 @@ export default function Dashboard(){
               <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border-light)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <span className="sans" style={{fontSize:13,fontWeight:700,color:"var(--accent)"}}>AI分析</span>
                 <div style={{display:"flex",gap:4,background:"var(--bg-card-alt)",borderRadius:6,padding:2}}>
-                  {(["consensus","report"] as const).map(t=>(<button key={t} onClick={()=>{setAiTab(t);setAiResult(null);}} style={{padding:"4px 10px",fontSize:11,borderRadius:4,border:"none",cursor:"pointer",background:aiTab===t?"#fff":"transparent",color:aiTab===t?"var(--accent)":"var(--text-muted)",fontWeight:600,boxShadow:aiTab===t?"0 1px 2px rgba(0,0,0,0.06)":"none"}}>{t==="consensus"?"コンセンサス入力":"レポート分析"}</button>))}
+                  {(["auto","consensus","report"] as const).map(t=>(<button key={t} onClick={()=>{setAiTab(t);setAiResult(null);}} style={{padding:"4px 10px",fontSize:11,borderRadius:4,border:"none",cursor:"pointer",background:aiTab===t?"#fff":"transparent",color:aiTab===t?"var(--accent)":"var(--text-muted)",fontWeight:600,boxShadow:aiTab===t?"0 1px 2px rgba(0,0,0,0.06)":"none"}}>{t==="auto"?"自動分析":t==="consensus"?"コンセンサス入力":"レポート分析"}</button>))}
                 </div>
               </div>
 
               <div style={{padding:mobile?"12px":"16px"}}>
-                {aiTab==="consensus"?(
+                {aiTab==="auto"?(
+                  <div>
+                    <div style={{fontSize:mobile?11:12,color:"var(--text-muted)",lineHeight:1.7,marginBottom:12}}>
+                      この画面に表示されている株価・テクニカル指標・マクロ環境・業績データをまとめてClaudeに渡し、総合的な投資分析を自動生成します。手入力は不要です。
+                    </div>
+                    <button disabled={aiLoading||!indicators} onClick={async()=>{
+                      setAiLoading(true);setAiResult(null);
+                      try{const r=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:stk.code,name:stk.name,price:stk.price,action:"analyze_auto",data:{
+                        quote:stk,
+                        indicators,
+                        macro:currentMS?{score:currentMS.normalizedScore,signal:currentMS.signal,factors:currentMS.factors.map(f=>({name:f.factorName,score:f.score,reason:f.reason}))}:null,
+                        financials,
+                        targets,
+                      }})});
+                        if(r.ok){const d=await r.json();setAiResult(d.analysis);}else{setAiResult({summary:"分析に失敗しました。もう一度お試しください。"});}}
+                      catch{setAiResult({summary:"エラーが発生しました"});}finally{setAiLoading(false);}
+                    }} style={{padding:"8px 20px",borderRadius:6,border:"none",cursor:aiLoading||!indicators?"not-allowed":"pointer",background:aiLoading||!indicators?"var(--border)":"var(--accent)",color:"#fff",fontSize:12,fontWeight:600,transition:"all 0.15s"}}>
+                      {aiLoading?"分析中...":`${stk.name}をAIで自動分析`}
+                    </button>
+                  </div>
+                ):aiTab==="consensus"?(
                   <div>
                     <div style={{display:"grid",gridTemplateColumns:mobile?"1fr":"repeat(2,1fr)",gap:10,marginBottom:12}}>
                       <div>
@@ -697,6 +718,22 @@ export default function Dashboard(){
                     )}
                     {aiResult.summary&&(
                       <div style={{marginBottom:10,fontSize:mobile?11:12,color:"var(--text-secondary)",lineHeight:1.7}}>{aiResult.summary}</div>
+                    )}
+                    {(aiResult.techView||aiResult.valuationView)&&(
+                      <div style={{display:"grid",gridTemplateColumns:mobile?"1fr":"repeat(2,1fr)",gap:8,marginBottom:10}}>
+                        {aiResult.techView&&(
+                          <div style={{padding:"8px 10px",background:"#fff",borderRadius:6,border:"1px solid var(--border-light)"}}>
+                            <div style={{fontSize:9,color:"var(--accent)",fontWeight:600,marginBottom:2}}>テクニカル</div>
+                            <div style={{fontSize:mobile?10:11,color:"var(--text-secondary)",lineHeight:1.6}}>{aiResult.techView}</div>
+                          </div>
+                        )}
+                        {aiResult.valuationView&&(
+                          <div style={{padding:"8px 10px",background:"#fff",borderRadius:6,border:"1px solid var(--border-light)"}}>
+                            <div style={{fontSize:9,color:"var(--amber)",fontWeight:600,marginBottom:2}}>バリュエーション</div>
+                            <div style={{fontSize:mobile?10:11,color:"var(--text-secondary)",lineHeight:1.6}}>{aiResult.valuationView}</div>
+                          </div>
+                        )}
+                      </div>
                     )}
                     {aiResult.keyPoints&&aiResult.keyPoints.length>0&&(
                       <div style={{marginBottom:8}}>

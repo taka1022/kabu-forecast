@@ -119,20 +119,22 @@ export async function fetchHistory(
 ): Promise<HistoryPoint[]> {
   try {
     const ticker = toTicker(code);
-    const result: any[] = await yf.historical(ticker, {
+    const result: any = await yf.chart(ticker, {
       period1: getStartDate(period),
       period2: new Date(),
       interval: "1d",
     });
 
-    return result.map((row) => ({
-      date: formatDate(row.date),
-      price: Math.round(row.close * 10) / 10,
-      open: Math.round(row.open * 10) / 10,
-      high: Math.round(row.high * 10) / 10,
-      low: Math.round(row.low * 10) / 10,
-      volume: row.volume,
-    }));
+    return (result?.quotes ?? [])
+      .filter((row: any) => row.close != null)
+      .map((row: any) => ({
+        date: formatDate(new Date(row.date)),
+        price: Math.round(row.close * 10) / 10,
+        open: Math.round((row.open ?? row.close) * 10) / 10,
+        high: Math.round((row.high ?? row.close) * 10) / 10,
+        low: Math.round((row.low ?? row.close) * 10) / 10,
+        volume: row.volume ?? 0,
+      }));
   } catch (err) {
     console.error(`Failed to fetch history for ${code}:`, err);
     return [];
@@ -419,9 +421,10 @@ function calcTrend(history: HistoryPoint[]): number {
     den += (i - xMean) ** 2;
   }
   const slope = num / den;
-  // Annualized return based on daily slope
+  // Annualized return based on daily slope, clamped to ±40% to avoid
+  // runaway extrapolation from a single strong quarter
   const dailyReturn = slope / yMean;
-  return dailyReturn * 252;
+  return Math.max(-0.4, Math.min(0.4, dailyReturn * 252));
 }
 
 // --- Phase: Company Financials ---
